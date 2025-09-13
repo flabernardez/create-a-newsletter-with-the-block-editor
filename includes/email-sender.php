@@ -16,20 +16,6 @@ if (!defined('ABSPATH')) {
  * Main function to send newsletters to subscribers
  */
 function canwbe_send_newsletter_to_subscribers($new_status, $old_status, $post) {
-    // SAFETY CHECK: Don't send if migration is in progress
-    if (get_transient('canwbe_migration_in_progress')) {
-        canwbe_log('Newsletter sending skipped - migration in progress', array('post_id' => $post->ID));
-        return;
-    }
-
-    // SAFETY CHECK: Don't send migrated posts that are being created during migration
-    if (get_post_meta($post->ID, '_migrated_post', true)) {
-        canwbe_log('Newsletter sending skipped - migrated post', array('post_id' => $post->ID));
-        // Remove the flag so future updates can send if needed
-        delete_post_meta($post->ID, '_migrated_post');
-        return;
-    }
-
     // Only send when transitioning to publish
     if ($post->post_type === 'newsletter' && $new_status === 'publish' && $old_status !== 'publish') {
         canwbe_process_newsletter_sending($post);

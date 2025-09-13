@@ -158,13 +158,6 @@ function canwbe_add_subscriber_role_profile_field($user) {
                             <?php echo esc_html(date_i18n(get_option('date_format'), strtotime($last_newsletter))); ?>
                         </p>
                     <?php endif; ?>
-
-                    <?php if (get_user_meta($user->ID, '_migrated_from_suscriptor_boletin', true)): ?>
-                        <p style="color: #0073aa;">
-                            <strong><?php esc_html_e('Migrated User:', 'create-a-newsletter-with-the-block-editor'); ?></strong>
-                            <?php esc_html_e('This user was migrated from the previous newsletter system.', 'create-a-newsletter-with-the-block-editor'); ?>
-                        </p>
-                    <?php endif; ?>
                 </td>
             </tr>
         <?php endif; ?>

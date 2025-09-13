@@ -30,11 +30,18 @@ require_once CANWBE_PLUGIN_PATH . 'includes/pages-manager.php';
 require_once CANWBE_PLUGIN_PATH . 'includes/subscriber-management.php';
 require_once CANWBE_PLUGIN_PATH . 'includes/email-settings.php';
 
-// Include advanced features
-require_once CANWBE_PLUGIN_PATH . 'includes/migration.php';
-require_once CANWBE_PLUGIN_PATH . 'includes/migration-admin.php';
-require_once CANWBE_PLUGIN_PATH . 'includes/batch-email-sender.php';
-require_once CANWBE_PLUGIN_PATH . 'includes/batch-email-config.php';
+// Include advanced features (optional)
+$advanced_files = array(
+    'includes/batch-email-sender.php',
+    'includes/batch-email-config.php'
+);
+
+foreach ($advanced_files as $file) {
+    $file_path = CANWBE_PLUGIN_PATH . $file;
+    if (file_exists($file_path)) {
+        require_once $file_path;
+    }
+}
 
 // Plugin activation hook
 register_activation_hook(__FILE__, 'canwbe_activate_plugin');

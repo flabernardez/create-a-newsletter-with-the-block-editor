@@ -321,12 +321,10 @@ function canwbe_export_subscribers_csv() {
         'Display Name',
         'Registered Date',
         'Last Login',
-        'Migrated',
         'Has Token'
     ));
 
     foreach ($subscribers as $subscriber) {
-        $is_migrated = get_user_meta($subscriber->ID, '_migrated_from_suscriptor_boletin', true) ? 'Yes' : 'No';
         $has_token = get_user_meta($subscriber->ID, 'canwbe_unsubscribe_token', true) ? 'Yes' : 'No';
         $last_login = get_user_meta($subscriber->ID, 'last_login', true);
         $last_login = $last_login ? date('Y-m-d H:i:s', $last_login) : 'Never';
@@ -337,7 +335,6 @@ function canwbe_export_subscribers_csv() {
             $subscriber->display_name,
             $subscriber->user_registered,
             $last_login,
-            $is_migrated,
             $has_token
         ));
     }
