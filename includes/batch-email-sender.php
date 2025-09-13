@@ -508,6 +508,27 @@ Batch ID: %s', 'create-a-newsletter-with-the-block-editor'),
     }
 
     /**
+     * Get batch size setting
+     */
+    public static function get_batch_size() {
+        return apply_filters('canwbe_batch_size', self::BATCH_SIZE);
+    }
+
+    /**
+     * Get batch delay setting
+     */
+    public static function get_batch_delay() {
+        return apply_filters('canwbe_batch_delay', self::BATCH_DELAY);
+    }
+
+    /**
+     * Get max retries setting
+     */
+    public static function get_max_retries() {
+        return apply_filters('canwbe_max_retries', self::MAX_RETRIES);
+    }
+
+    /**
      * Add admin menu
      */
     public static function add_admin_menu() {
