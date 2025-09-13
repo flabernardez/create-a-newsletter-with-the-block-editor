@@ -31,11 +31,11 @@ const NewsletterMetaFields = () => {
         return null;
     }
 
-    // Extract meta values with defaults
+    // Extract meta values with defaults - NOMBRES CORREGIDOS
     const {
-        cnfw_intro_message: introMessage = '',
-        cnfw_unsubscribe_message: unsubscribeMessage = '',
-        cnfw_recipient_roles: recipientRoles = []
+        canwbe_intro_message: introMessage = '',
+        canwbe_unsubscribe_message: unsubscribeMessage = '',
+        canwbe_recipient_roles: recipientRoles = []
     } = meta;
 
     // Update meta function
@@ -46,8 +46,8 @@ const NewsletterMetaFields = () => {
         });
     };
 
-    // Get roles from localized script
-    const availableRoles = window.cnfwRoles || [];
+    // Get roles from localized script - NOMBRE CORREGIDO
+    const availableRoles = window.canwbeRoles || [];
     const roleSuggestions = availableRoles.map(role => role.label);
 
     // Convert role values to labels for display
@@ -87,7 +87,7 @@ const NewsletterMetaFields = () => {
 
                     updateMeta('canwbe_recipient_roles', selectedValues);
                 }}
-                help={__('Select the user roles to send this newsletter to.', 'create-a-newsletter-with-the-block-editor')}
+                help={__('Separar con comas o la tecla Intro.', 'create-a-newsletter-with-the-block-editor')}
             />
         </PluginDocumentSettingPanel>
     );
