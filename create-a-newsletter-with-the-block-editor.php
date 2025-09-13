@@ -220,6 +220,20 @@ function canwbe_generate_unsubscribe_token($user_id) {
 
 // 5. Function to send the newsletter to subscribers
 function canwbe_send_newsletter_to_subscribers($new_status, $old_status, $post) {
+    // SAFETY CHECK: Don't send if migration is in progress
+    if (get_transient('canwbe_migration_in_progress')) {
+        error_log('CANWBE: Newsletter sending skipped - migration in progress for post ID: ' . $post->ID);
+        return;
+    }
+
+    // SAFETY CHECK: Don't send migrated posts that are being created during migration
+    if (get_post_meta($post->ID, '_migrated_post', true)) {
+        error_log('CANWBE: Newsletter sending skipped - this is a migrated post: ' . $post->ID);
+        // Remove the flag so future updates can send if needed
+        delete_post_meta($post->ID, '_migrated_post');
+        return;
+    }
+
     if ($post->post_type === 'newsletter' && $new_status === 'publish' && $old_status !== 'publish') {
         // Get recipient roles from meta field
         $recipient_roles = get_post_meta($post->ID, 'canwbe_recipient_roles', true);

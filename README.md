@@ -1,204 +1,131 @@
 # Create a Newsletter with the Block Editor
 
-Un plugin de WordPress que crea newsletters en estilo Substack utilizando el editor de bloques de WordPress.
+[![WordPress Plugin Version](https://img.shields.io/wordpress/plugin/v/create-a-newsletter-with-the-block-editor?style=flat-square)](https://wordpress.org/plugins/create-a-newsletter-with-the-block-editor/)
+[![WordPress Plugin Downloads](https://img.shields.io/wordpress/plugin/dt/create-a-newsletter-with-the-block-editor?style=flat-square)](https://wordpress.org/plugins/create-a-newsletter-with-the-block-editor/)
+[![WordPress Plugin Rating](https://img.shields.io/wordpress/plugin/stars/create-a-newsletter-with-the-block-editor?style=flat-square)](https://wordpress.org/plugins/create-a-newsletter-with-the-block-editor/)
+[![License](https://img.shields.io/badge/license-GPL%20v3%2B-blue?style=flat-square)](https://www.gnu.org/licenses/gpl-3.0.html)
 
-## Características
+Creates beautiful newsletters in Substack style using WordPress Block Editor. Send newsletters to subscribers with custom roles and unsubscribe management.
 
-- Custom Post Type para newsletters
-- Panel de configuración en el editor de Gutenberg
-- Envío automático de newsletters al publicar
-- Sistema de suscriptores con roles personalizados
-- Enlaces de cancelación de suscripción seguros
-- Dashboard para suscriptores
-- Soporte para múltiples roles de destinatarios
-- Estilo inspirado en Substack
+## 🌟 Features
 
-## Instalación para Desarrollo
+- **Substack-style Design**: Clean, minimal newsletter layout
+- **Block Editor Integration**: Use Gutenberg blocks for rich content
+- **Subscriber Management**: Custom subscriber roles and targeting
+- **Automatic Sending**: Newsletters sent automatically when published
+- **Secure Unsubscribe**: One-click unsubscribe with secure tokens
+- **Responsive Design**: Perfect on desktop and mobile
+- **Developer Friendly**: Built with modern React and WordPress standards
 
-### Prerrequisitos
+## 🚀 Quick Start
 
-- Node.js (versión 14 o superior)
-- npm o yarn
-- WordPress instalado y configurado
+1. **Install** the plugin from WordPress.org or upload manually
+2. **Activate** the plugin in your WordPress admin
+3. **Create** your first newsletter using the Block Editor
+4. **Configure** settings in the newsletter sidebar panel
+5. **Add subscribers** to the "Newsletter Subscriber" role
+6. **Publish** to automatically send to all subscribers
 
-### Configuración del entorno de desarrollo
+## 📖 Documentation
 
-1. Clona o descarga el plugin en tu directorio de plugins de WordPress:
-```bash
-cd wp-content/plugins/
+### Creating Your First Newsletter
+
+1. Navigate to **Newsletters** → **Add New** in your WordPress admin
+2. Write your newsletter content using any Gutenberg blocks
+3. In the sidebar panel, configure:
+    - **Intro Message**: Text that appears before your content
+    - **Unsubscribe Message**: Custom unsubscribe link text
+    - **Recipient Roles**: Which user roles should receive this newsletter
+
+### Managing Subscribers
+
+Subscribers are WordPress users with the "Newsletter Subscriber" role:
+
+- **Add manually**: Create users with the Newsletter Subscriber role
+- **Registration**: Allow visitors to register with this role
+- **Import**: Use any WordPress user import tool
+- **Segment**: Send to specific user roles (subscribers, customers, etc.)
+
+### Customization
+
+The plugin provides hooks for developers:
+
+```php
+// Modify newsletter content before sending
+add_filter('canwbe_newsletter_content', 'my_newsletter_filter');
+
+// Custom CSS variables for email styling
+add_filter('canwbe_css_variables', 'my_css_variables');
+
+// Modify recipient list
+add_filter('canwbe_newsletter_recipients', 'my_recipients_filter');
 ```
 
-2. Navega al directorio del plugin:
-```bash
-cd create-a-newsletter-with-the-block-editor
-```
+## 🔧 System Requirements
 
-3. Instala las dependencias:
+- **WordPress**: 5.8 or higher
+- **PHP**: 7.4 or higher
+- **MySQL**: 5.6 or higher
+- **JavaScript**: Enabled for Block Editor
+
+## 🆘 Support
+
+- **Documentation**: Full documentation available in the plugin
+- **Community**: Ask questions in [WordPress.org forums](https://wordpress.org/support/plugin/create-a-newsletter-with-the-block-editor/)
+- **Issues**: Report bugs on [GitHub](https://github.com/flabernardez/create-a-newsletter-with-the-block-editor)
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how you can help:
+
+1. **Report bugs**: Use GitHub issues for bug reports
+2. **Suggest features**: Share your ideas for new features
+3. **Submit code**: Fork the repository and submit pull requests
+4. **Translate**: Help translate the plugin into your language
+5. **Test**: Test new releases and provide feedback
+
+### Development Setup
+
 ```bash
+# Clone the repository
+git clone https://github.com/flabernardez/create-a-newsletter-with-the-block-editor.git
+
+# Install dependencies
 npm install
-```
 
-### Scripts disponibles
-
-- **Desarrollo**: `npm run start` - Inicia el modo de desarrollo con recarga automática
-- **Construcción**: `npm run build` - Construye los archivos para producción
-- **Linting JS**: `npm run lint:js` - Verifica el código JavaScript
-- **Linting CSS**: `npm run lint:css` - Verifica los estilos CSS
-- **Formateo**: `npm run format` - Formatea el código automáticamente
-
-### Estructura del proyecto
-
-```
-create-a-newsletter-with-the-block-editor/
-├── build/                  # Archivos compilados (generados)
-├── src/                    # Código fuente
-│   ├── components/
-│   │   └── NewsletterMetaFields.js
-│   └── index.js
-├── languages/              # Archivos de traducción
-├── create-a-newsletter-with-the-block-editor.php  # Archivo principal del plugin
-├── package.json
-├── webpack.config.js
-└── README.md
-```
-
-## Desarrollo
-
-### Modo de desarrollo
-
-Para trabajar en el plugin, ejecuta:
-
-```bash
+# Start development mode
 npm run start
-```
 
-Esto iniciará webpack en modo watch, recompilando automáticamente los archivos cuando hagas cambios.
-
-### Construcción para producción
-
-Cuando estés listo para desplegar, construye los archivos optimizados:
-
-```bash
+# Build for production
 npm run build
 ```
 
-### Añadir nuevos componentes
+## 📄 License
 
-1. Crea tus componentes en `src/components/`
-2. Impórtalos en `src/index.js` o en otros componentes
-3. Los archivos se compilarán automáticamente
+This plugin is licensed under the [GPL v3 or later](https://www.gnu.org/licenses/gpl-3.0.html).
 
-### Localización
+## 🙏 Credits
 
-El plugin está preparado para traducción. Las cadenas de texto utilizan la función `__()` de WordPress:
+- **Author**: [Flavia Bernárdez Rodríguez](https://flabernardez.com)
+- **Inspiration**: Substack's clean newsletter design
+- **Built with**: WordPress Block Editor, React, and modern web standards
 
-```javascript
-__('Texto a traducir', 'create-a-newsletter-with-the-block-editor')
-```
+## 📈 Changelog
 
-## API del Plugin
+### 1.3
+- Updated plugin name and branding
+- Refactored code with new prefixes
+- Added plugin constants
+- Improved translation loading
+- Enhanced documentation
+- Modernized development workflow
 
-### Meta Fields registrados
+### 1.2
+- Initial public release
+- Complete newsletter system
+- Subscriber management
+- Block Editor integration
 
-- `canwbe_intro_message`: Mensaje de introducción del newsletter
-- `canwbe_unsubscribe_message`: Mensaje del enlace de cancelación de suscripción
-- `canwbe_recipient_roles`: Array de roles que recibirán el newsletter
+---
 
-### Constantes del plugin
-
-- `CANWBE_VERSION`: Versión actual del plugin
-- `CANWBE_PLUGIN_URL`: URL del directorio del plugin
-- `CANWBE_PLUGIN_PATH`: Ruta del directorio del plugin
-
-### Hooks personalizados
-
-El plugin proporciona varios hooks para extender su funcionalidad. Consulta el archivo PHP principal para más detalles.
-
-## Configuración de GitHub desde PHPStorm
-
-### 1. Inicializar Git en el proyecto
-
-En PHPStorm:
-1. Ve a **VCS** → **Create Git Repository**
-2. Selecciona la carpeta raíz del plugin
-3. Click en **OK**
-
-### 2. Configurar el repositorio remoto
-
-1. Ve a **VCS** → **Git** → **Remotes**
-2. Click en **+** para añadir un nuevo remote
-3. Nombre: `origin`
-4. URL: `https://github.com/TU_USUARIO/create-a-newsletter-with-the-block-editor.git`
-
-### 3. Commit inicial y push
-
-En la terminal de PHPStorm o usando el GUI:
-
-```bash
-# Añadir todos los archivos
-git add .
-
-# Commit inicial
-git commit -m "Initial commit: Create a Newsletter with Block Editor v1.3"
-
-# Push al repositorio remoto
-git push -u origin main
-```
-
-### 4. Configurar .gitignore adicional
-
-Asegúrate de que tu `.gitignore` esté actualizado para PHPStorm:
-
-```gitignore
-# PHPStorm
-.idea/
-*.iml
-
-# Node modules
-node_modules/
-
-# Build files
-build/
-
-# WordPress
-wp-config.php
-wp-content/uploads/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-```
-
-## Contribuir
-
-1. Haz fork del proyecto
-2. Crea una rama para tu característica (`git checkout -b feature/nueva-caracteristica`)
-3. Realiza tus cambios
-4. Ejecuta los linters: `npm run lint:js && npm run lint:css`
-5. Haz commit de tus cambios (`git commit -am 'Añade nueva característica'`)
-6. Push a la rama (`git push origin feature/nueva-caracteristica`)
-7. Crea un Pull Request
-
-## Changelog
-
-### Versión 1.3
-- Actualizado el nombre del plugin y text domain
-- Refactorizado código con nuevos prefijos (canwbe_)
-- Añadido soporte para constantes del plugin
-- Mejorada la carga de traducciones
-- Actualizada estructura para desarrollo moderno
-
-### Versión 1.2
-- Versión inicial con funcionalidad completa de newsletter
-
-## Licencia
-
-GPL v3 o posterior
-
-## Autor
-
-Flavia Bernárdez Rodríguez  
-Web: [https://flabernardez.com](https://flabernardez.com)
+**Made with ❤️ for the WordPress community**
