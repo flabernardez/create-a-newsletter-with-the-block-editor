@@ -24,29 +24,6 @@ class CANWBE_Batch_Email_Sender {
     const RETRY_DELAY = 300;        // Seconds before retry (5 minutes)
 
     /**
-     * Safely initialize batch data with all required keys
-     */
-    private static function initialize_batch_data($batch_data = array()) {
-        $defaults = array(
-            'post_id' => 0,
-            'batch_id' => '',
-            'total_emails' => 0,
-            'sent_emails' => 0,
-            'failed_emails' => 0,
-            'status' => 'queued',
-            'created_at' => current_time('mysql'),
-            'started_at' => null,
-            'completed_at' => null,
-            'current_batch' => 0,
-            'email_queue' => array(),
-            'last_sent_email' => null,
-            'last_sent_user_id' => null
-        );
-
-        return wp_parse_args($batch_data, $defaults);
-    }
-
-    /**
      * Initialize the batch email system
      */
     public static function init() {
@@ -81,7 +58,7 @@ class CANWBE_Batch_Email_Sender {
             'total_emails' => 0,
             'sent_emails' => 0,
             'failed_emails' => 0,
-            'status' => 'unknown',
+            'status' => 'queued',
             'created_at' => current_time('mysql'),
             'started_at' => null,
             'completed_at' => null,
@@ -376,7 +353,7 @@ class CANWBE_Batch_Email_Sender {
     }
 
     /**
-     * Cancel batch and restart from last sent email
+     * Cancel batch and restart from last sent email (FIXED VERSION)
      */
     public static function cancel_and_restart_batch($batch_id) {
         $batch_data = get_option('canwbe_batch_' . $batch_id);
@@ -396,72 +373,79 @@ class CANWBE_Batch_Email_Sender {
             return false;
         }
 
-        // Get original newsletter data
-        $recipient_roles = get_post_meta($post_id, 'canwbe_recipient_roles', true);
-        if (empty($recipient_roles)) {
-            $recipient_roles = array('newsletter_subscriber');
-        }
-
-        // Get all subscribers
-        $all_subscribers = canwbe_get_users_by_roles($recipient_roles);
-
-        if (empty($all_subscribers)) {
+        // FIXED: Use the original email queue from the batch instead of getting fresh subscribers
+        if (!isset($batch_data['email_queue']) || !is_array($batch_data['email_queue'])) {
+            self::log_batch_event($batch_id, 'No email queue found for restart');
             return false;
         }
 
-        // Filter subscribers - exclude those who already received the email
-        $remaining_subscribers = array();
+        // Filter to get only emails that were NOT sent successfully
+        $remaining_emails = array();
         $sent_user_ids = array();
 
-        // Get list of already sent user IDs from the batch data
-        if (isset($batch_data['email_queue']) && is_array($batch_data['email_queue'])) {
-            foreach ($batch_data['email_queue'] as $email) {
-                if (isset($email['status']) && $email['status'] === 'sent') {
-                    $sent_user_ids[] = $email['user_id'];
-                }
+        foreach ($batch_data['email_queue'] as $email) {
+            if (isset($email['status']) && $email['status'] === 'sent') {
+                // Track which users already received the email
+                $sent_user_ids[] = $email['user_id'];
+            } else {
+                // This email was not sent successfully, include it in restart
+                $remaining_emails[] = array(
+                    'to' => sanitize_email($email['to']),
+                    'user_id' => $email['user_id'],
+                    'subject' => $email['subject'],
+                    'message' => $email['message'],
+                    'headers' => $email['headers'],
+                    'status' => 'pending',
+                    'attempts' => 0,
+                    'last_attempt' => null,
+                    'error_message' => null
+                );
             }
         }
 
-        // Filter out users who already received the email
-        foreach ($all_subscribers as $subscriber) {
-            if (!in_array($subscriber->ID, $sent_user_ids)) {
-                $remaining_subscribers[] = $subscriber;
-            }
-        }
-
-        if (empty($remaining_subscribers)) {
-            self::log_batch_event($batch_id, 'No remaining subscribers for restart');
+        if (empty($remaining_emails)) {
+            self::log_batch_event($batch_id, 'No remaining emails for restart - all were sent successfully');
             return false;
         }
 
-        // Prepare email content
-        $email_data = canwbe_prepare_email_content($post);
+        // Create new batch ID
+        $new_batch_id = 'newsletter_' . $post_id . '_' . time();
 
-        // Create new batch for remaining emails
-        $new_batch_id = self::queue_newsletter(
-            $post_id,
-            $remaining_subscribers,
-            $email_data['subject'],
-            $email_data['message'],
-            $email_data['headers'],
-            $email_data['unsubscribe_message']
-        );
+        // Store batch data with safe initialization - FIXED LOGIC
+        $new_batch_data = self::initialize_batch_data(array(
+            'post_id' => $post_id,
+            'batch_id' => $new_batch_id,
+            'total_emails' => count($remaining_emails),
+            'email_queue' => $remaining_emails
+        ));
+
+        update_option('canwbe_batch_' . $new_batch_id, $new_batch_data);
 
         // Update post meta with new batch ID
         update_post_meta($post_id, '_newsletter_batch_id', $new_batch_id);
 
-        $last_sent_user = isset($batch_data['last_sent_user_id']) ? $batch_data['last_sent_user_id'] : null;
+        // Schedule first batch of the restart
+        wp_schedule_single_event(time() + 5, 'canwbe_process_email_batch', array($new_batch_id));
 
-        self::log_batch_event($new_batch_id, 'Batch restarted from previous failure', array(
+        // Get the email of the last successfully sent email for logging
+        $last_sent_email = null;
+        foreach (array_reverse($batch_data['email_queue']) as $email) {
+            if (isset($email['status']) && $email['status'] === 'sent') {
+                $last_sent_email = $email['to'];
+                break;
+            }
+        }
+
+        self::log_batch_event($new_batch_id, 'Batch restarted from previous batch', array(
             'original_batch_id' => $batch_id,
-            'remaining_emails' => count($remaining_subscribers),
+            'remaining_emails' => count($remaining_emails),
             'emails_already_sent' => count($sent_user_ids),
-            'started_after_user_id' => $last_sent_user
+            'last_sent_email' => $last_sent_email,
+            'total_original_emails' => count($batch_data['email_queue'])
         ));
 
         return $new_batch_id;
     }
-
     /**
      * UPDATED: Get batch status (fixed status detection)
      */
