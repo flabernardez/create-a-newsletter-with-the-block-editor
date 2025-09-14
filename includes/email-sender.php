@@ -82,7 +82,7 @@ function canwbe_process_newsletter_sending($post) {
 }
 
 /**
- * Prepare email content for sending
+ * Prepare email content for sending (SINGLE DECLARATION - FIXED)
  */
 function canwbe_prepare_email_content($post) {
     $subject = sanitize_text_field($post->post_title);
@@ -98,7 +98,7 @@ function canwbe_prepare_email_content($post) {
     if (!empty($intro_message)) {
         $message .= wp_kses_post($intro_message) . '<br><br>';
         $message .= '<a href="' . esc_url($newsletter_link) . '">' .
-            esc_html__('Visualiza el boletín en la web con todos sus colorinchis', 'create-a-newsletter-with-the-block-editor') .
+            esc_html__('View on the web with graphics and images', 'create-a-newsletter-with-the-block-editor') .
             '</a><br><br>';
     }
 
@@ -209,52 +209,4 @@ function canwbe_add_batch_admin_notice($post, $batch_id) {
             <?php
         }
     });
-}
-
-/**
- * Prepare email content for sending (helper function for batch restart)
- */
-function canwbe_prepare_email_content($post) {
-    $subject = sanitize_text_field($post->post_title);
-    $newsletter_excerpt = get_the_excerpt($post->ID);
-    $newsletter_content = apply_filters('the_content', $post->post_content);
-    $newsletter_link = get_permalink($post->ID);
-
-    // Build message
-    $message = '';
-
-    // Add intro message if provided
-    $intro_message = get_post_meta($post->ID, 'canwbe_intro_message', true);
-    if (!empty($intro_message)) {
-        $message .= wp_kses_post($intro_message) . '<br><br>';
-        $message .= '<a href="' . esc_url($newsletter_link) . '">' .
-            esc_html__('View on the web with graphics and images', 'create-a-newsletter-with-the-block-editor') .
-            '</a><br><br>';
-    }
-
-    // Add main content
-    $message .= wp_kses_post($newsletter_content);
-
-    // Replace CSS variables
-    $variables = canwbe_get_default_css_variables();
-    $message = canwbe_replace_css_variables($message, $variables);
-
-    // Prepare headers
-    $headers = array('Content-Type: text/html; charset=UTF-8');
-
-    // Get unsubscribe message
-    $unsubscribe_message = get_post_meta($post->ID, 'canwbe_unsubscribe_message', true);
-    if (empty($unsubscribe_message)) {
-        $unsubscribe_message = esc_html__('Unsubscribe from this newsletter', 'create-a-newsletter-with-the-block-editor');
-    } else {
-        $unsubscribe_message = sanitize_text_field($unsubscribe_message);
-    }
-
-    return array(
-        'subject' => $subject,
-        'message' => $message,
-        'headers' => $headers,
-        'unsubscribe_message' => $unsubscribe_message,
-        'excerpt' => $newsletter_excerpt
-    );
 }

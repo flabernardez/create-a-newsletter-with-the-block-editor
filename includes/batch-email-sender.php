@@ -24,6 +24,29 @@ class CANWBE_Batch_Email_Sender {
     const RETRY_DELAY = 300;        // Seconds before retry (5 minutes)
 
     /**
+     * Safely initialize batch data with all required keys
+     */
+    private static function initialize_batch_data($batch_data = array()) {
+        $defaults = array(
+            'post_id' => 0,
+            'batch_id' => '',
+            'total_emails' => 0,
+            'sent_emails' => 0,
+            'failed_emails' => 0,
+            'status' => 'queued',
+            'created_at' => current_time('mysql'),
+            'started_at' => null,
+            'completed_at' => null,
+            'current_batch' => 0,
+            'email_queue' => array(),
+            'last_sent_email' => null,
+            'last_sent_user_id' => null
+        );
+
+        return wp_parse_args($batch_data, $defaults);
+    }
+
+    /**
      * Initialize the batch email system
      */
     public static function init() {
@@ -49,7 +72,30 @@ class CANWBE_Batch_Email_Sender {
     }
 
     /**
-     * Queue newsletter for batch sending
+     * Safely initialize batch data with all required keys (ADD THIS TO CANWBE_Batch_Email_Sender class)
+     */
+    private static function initialize_batch_data($batch_data = array()) {
+        $defaults = array(
+            'post_id' => 0,
+            'batch_id' => '',
+            'total_emails' => 0,
+            'sent_emails' => 0,
+            'failed_emails' => 0,
+            'status' => 'unknown',
+            'created_at' => current_time('mysql'),
+            'started_at' => null,
+            'completed_at' => null,
+            'current_batch' => 0,
+            'email_queue' => array(),
+            'last_sent_email' => null,
+            'last_sent_user_id' => null
+        );
+
+        return wp_parse_args($batch_data, $defaults);
+    }
+
+    /**
+     * UPDATED: Queue newsletter for batch sending (with safe initialization)
      */
     public static function queue_newsletter($post_id, $subscribers, $subject, $message, $headers, $unsubscribe_message) {
         $batch_id = 'newsletter_' . $post_id . '_' . time();
@@ -74,22 +120,13 @@ class CANWBE_Batch_Email_Sender {
             );
         }
 
-        // Store batch data - UPDATED with tracking fields
-        $batch_data = array(
+        // Store batch data with safe initialization - FIXED
+        $batch_data = self::initialize_batch_data(array(
             'post_id' => $post_id,
             'batch_id' => $batch_id,
             'total_emails' => count($email_queue),
-            'sent_emails' => 0,
-            'failed_emails' => 0,
-            'status' => 'queued',
-            'created_at' => current_time('mysql'),
-            'started_at' => null,
-            'completed_at' => null,
-            'current_batch' => 0,
-            'email_queue' => $email_queue,
-            'last_sent_email' => null,      // NEW - for tracking
-            'last_sent_user_id' => null     // NEW - for tracking
-        );
+            'email_queue' => $email_queue
+        ));
 
         update_option('canwbe_batch_' . $batch_id, $batch_data);
 
@@ -106,28 +143,40 @@ class CANWBE_Batch_Email_Sender {
     }
 
     /**
-     * Process a batch of emails
+     * UPDATED: Process a batch of emails (ensure proper status updates)
      */
     public static function process_email_batch($batch_id) {
         $batch_data = get_option('canwbe_batch_' . $batch_id);
 
-        if (!$batch_data || $batch_data['status'] === 'cancelled') {
+        if (!$batch_data || !is_array($batch_data)) {
             return;
         }
 
-        // Update status if first batch
-        if ($batch_data['status'] === 'queued') {
-            $batch_data['status'] = 'processing';
-            $batch_data['started_at'] = current_time('mysql');
+        // Initialize batch data safely
+        $batch_data = self::initialize_batch_data($batch_data);
+
+        if ($batch_data['status'] === 'cancelled') {
+            return;
         }
 
-        // Get emails to process in this batch
+        // Update status if first batch - ENSURE THIS HAPPENS
+        if ($batch_data['status'] === 'queued' || $batch_data['status'] === 'unknown' || empty($batch_data['status'])) {
+            $batch_data['status'] = 'processing';
+            $batch_data['started_at'] = current_time('mysql');
+
+            // Save immediately to ensure status is updated
+            update_option('canwbe_batch_' . $batch_id, $batch_data);
+
+            self::log_batch_event($batch_id, 'Status updated to processing');
+        }
+
+        // Rest of the function remains the same...
         $emails_to_process = array_slice(
             array_filter($batch_data['email_queue'], function($email) {
-                return $email['status'] === 'pending';
+                return isset($email['status']) && $email['status'] === 'pending';
             }),
             0,
-            self::BATCH_SIZE
+            self::get_batch_size()
         );
 
         if (empty($emails_to_process)) {
@@ -136,7 +185,8 @@ class CANWBE_Batch_Email_Sender {
         }
 
         self::log_batch_event($batch_id, 'Processing batch', array(
-            'emails_in_batch' => count($emails_to_process)
+            'emails_in_batch' => count($emails_to_process),
+            'current_status' => $batch_data['status']
         ));
 
         // Process each email in the batch
@@ -145,21 +195,25 @@ class CANWBE_Batch_Email_Sender {
 
             // Update email status in queue
             foreach ($batch_data['email_queue'] as &$queue_email) {
-                if ($queue_email['to'] === $email_data['to'] && $queue_email['user_id'] === $email_data['user_id']) {
-                    $queue_email['attempts']++;
+                if (isset($queue_email['to']) && isset($queue_email['user_id']) &&
+                    $queue_email['to'] === $email_data['to'] &&
+                    $queue_email['user_id'] === $email_data['user_id']) {
+
+                    $queue_email['attempts'] = isset($queue_email['attempts']) ? $queue_email['attempts'] + 1 : 1;
                     $queue_email['last_attempt'] = current_time('mysql');
 
                     if ($success) {
                         $queue_email['status'] = 'sent';
                         $batch_data['sent_emails']++;
 
-                        // NEW: Track last sent email for restart functionality
+                        // Track last sent email for restart functionality
                         $batch_data['last_sent_email'] = $email_data['to'];
                         $batch_data['last_sent_user_id'] = $email_data['user_id'];
 
                         self::log_email_success($batch_id, $email_data);
                     } else {
-                        if ($queue_email['attempts'] >= self::MAX_RETRIES) {
+                        $max_retries = self::get_max_retries();
+                        if ($queue_email['attempts'] >= $max_retries) {
                             $queue_email['status'] = 'failed';
                             $batch_data['failed_emails']++;
 
@@ -181,25 +235,35 @@ class CANWBE_Batch_Email_Sender {
             }
         }
 
-        // Update batch data
+        // Update batch data with confirmed processing status
         $batch_data['current_batch']++;
+        $batch_data['status'] = 'processing'; // Ensure status remains processing
         update_option('canwbe_batch_' . $batch_id, $batch_data);
 
         // Schedule next batch if needed
         $pending_emails = array_filter($batch_data['email_queue'], function($email) {
-            return $email['status'] === 'pending';
+            return isset($email['status']) && $email['status'] === 'pending';
         });
 
         if (!empty($pending_emails)) {
-            wp_schedule_single_event(time() + self::BATCH_DELAY, 'canwbe_process_email_batch', array($batch_id));
+            wp_schedule_single_event(time() + self::get_batch_delay(), 'canwbe_process_email_batch', array($batch_id));
+
+            self::log_batch_event($batch_id, 'Next batch scheduled', array(
+                'pending_emails' => count($pending_emails),
+                'delay' => self::get_batch_delay()
+            ));
         } else {
             // Schedule retry for failed emails
             $retry_emails = array_filter($batch_data['email_queue'], function($email) {
-                return $email['status'] === 'retry';
+                return isset($email['status']) && $email['status'] === 'retry';
             });
 
             if (!empty($retry_emails)) {
                 wp_schedule_single_event(time() + self::RETRY_DELAY, 'canwbe_retry_failed_emails', array($batch_id));
+
+                self::log_batch_event($batch_id, 'Retry scheduled', array(
+                    'retry_emails' => count($retry_emails)
+                ));
             } else {
                 self::complete_batch($batch_id, $batch_data);
             }
@@ -399,7 +463,7 @@ class CANWBE_Batch_Email_Sender {
     }
 
     /**
-     * Get batch status (fixed the undefined array keys issue)
+     * UPDATED: Get batch status (fixed status detection)
      */
     public static function get_batch_status($batch_id) {
         $batch_data = get_option('canwbe_batch_' . $batch_id);
@@ -408,14 +472,31 @@ class CANWBE_Batch_Email_Sender {
             return false;
         }
 
-        // Ensure all required keys exist with defaults
-        $status = isset($batch_data['status']) ? $batch_data['status'] : 'unknown';
-        $total_emails = isset($batch_data['total_emails']) ? (int)$batch_data['total_emails'] : 0;
-        $sent_emails = isset($batch_data['sent_emails']) ? (int)$batch_data['sent_emails'] : 0;
-        $failed_emails = isset($batch_data['failed_emails']) ? (int)$batch_data['failed_emails'] : 0;
-        $created_at = isset($batch_data['created_at']) ? $batch_data['created_at'] : '';
-        $started_at = isset($batch_data['started_at']) ? $batch_data['started_at'] : null;
-        $completed_at = isset($batch_data['completed_at']) ? $batch_data['completed_at'] : null;
+        // Initialize with safe defaults
+        $batch_data = self::initialize_batch_data($batch_data);
+
+        // Get actual values with proper fallbacks
+        $status = isset($batch_data['status']) && !empty($batch_data['status']) ? $batch_data['status'] : 'queued';
+        $total_emails = (int)$batch_data['total_emails'];
+        $sent_emails = (int)$batch_data['sent_emails'];
+        $failed_emails = (int)$batch_data['failed_emails'];
+
+        // Smart status detection - FIXED
+        if ($status === 'unknown' || $status === '') {
+            if ($sent_emails > 0 || $failed_emails > 0) {
+                if ($sent_emails + $failed_emails >= $total_emails) {
+                    $status = 'completed';
+                } else {
+                    $status = 'processing';
+                }
+            } else {
+                $status = 'queued';
+            }
+
+            // Update the status in the database
+            $batch_data['status'] = $status;
+            update_option('canwbe_batch_' . $batch_id, $batch_data);
+        }
 
         return array(
             'batch_id' => $batch_id,
@@ -426,13 +507,14 @@ class CANWBE_Batch_Email_Sender {
             'progress_percentage' => $total_emails > 0
                 ? round(($sent_emails + $failed_emails) / $total_emails * 100, 2)
                 : 0,
-            'created_at' => $created_at,
-            'started_at' => $started_at,
-            'completed_at' => $completed_at,
-            'last_sent_email' => isset($batch_data['last_sent_email']) ? $batch_data['last_sent_email'] : null,
+            'created_at' => sanitize_text_field($batch_data['created_at']),
+            'started_at' => $batch_data['started_at'] ? sanitize_text_field($batch_data['started_at']) : null,
+            'completed_at' => $batch_data['completed_at'] ? sanitize_text_field($batch_data['completed_at']) : null,
+            'last_sent_email' => isset($batch_data['last_sent_email']) ? sanitize_email($batch_data['last_sent_email']) : null,
             'can_restart' => in_array($status, ['cancelled', 'failed', 'processing']) && $sent_emails > 0
         );
     }
+
 
     /**
      * Get all active batches
