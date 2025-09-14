@@ -36,8 +36,9 @@ class CANWBE_Batch_Email_Sender {
         // Admin page hooks
         add_action('admin_menu', array(__CLASS__, 'add_admin_menu'));
 
-        // AJAX hooks for admin interface
+        // AJAX hooks for admin interface - UPDATED
         add_action('wp_ajax_canwbe_cancel_batch', array(__CLASS__, 'ajax_cancel_batch'));
+        add_action('wp_ajax_canwbe_cancel_and_restart_batch', array(__CLASS__, 'ajax_cancel_and_restart_batch')); // NEW
         add_action('wp_ajax_canwbe_get_batch_status', array(__CLASS__, 'ajax_get_batch_status'));
 
         // Hook to clean old batch data
@@ -73,7 +74,7 @@ class CANWBE_Batch_Email_Sender {
             );
         }
 
-        // Store batch data
+        // Store batch data - UPDATED with tracking fields
         $batch_data = array(
             'post_id' => $post_id,
             'batch_id' => $batch_id,
@@ -85,7 +86,9 @@ class CANWBE_Batch_Email_Sender {
             'started_at' => null,
             'completed_at' => null,
             'current_batch' => 0,
-            'email_queue' => $email_queue
+            'email_queue' => $email_queue,
+            'last_sent_email' => null,      // NEW - for tracking
+            'last_sent_user_id' => null     // NEW - for tracking
         );
 
         update_option('canwbe_batch_' . $batch_id, $batch_data);
@@ -149,6 +152,10 @@ class CANWBE_Batch_Email_Sender {
                     if ($success) {
                         $queue_email['status'] = 'sent';
                         $batch_data['sent_emails']++;
+
+                        // NEW: Track last sent email for restart functionality
+                        $batch_data['last_sent_email'] = $email_data['to'];
+                        $batch_data['last_sent_user_id'] = $email_data['user_id'];
 
                         self::log_email_success($batch_id, $email_data);
                     } else {
@@ -305,27 +312,125 @@ class CANWBE_Batch_Email_Sender {
     }
 
     /**
-     * Get batch status
+     * Cancel batch and restart from last sent email
      */
-    public static function get_batch_status($batch_id) {
+    public static function cancel_and_restart_batch($batch_id) {
         $batch_data = get_option('canwbe_batch_' . $batch_id);
 
         if (!$batch_data) {
             return false;
         }
 
+        // Cancel current batch
+        self::cancel_batch($batch_id);
+
+        // Get post data to recreate the newsletter
+        $post_id = $batch_data['post_id'];
+        $post = get_post($post_id);
+
+        if (!$post) {
+            return false;
+        }
+
+        // Get original newsletter data
+        $recipient_roles = get_post_meta($post_id, 'canwbe_recipient_roles', true);
+        if (empty($recipient_roles)) {
+            $recipient_roles = array('newsletter_subscriber');
+        }
+
+        // Get all subscribers
+        $all_subscribers = canwbe_get_users_by_roles($recipient_roles);
+
+        if (empty($all_subscribers)) {
+            return false;
+        }
+
+        // Filter subscribers - exclude those who already received the email
+        $remaining_subscribers = array();
+        $sent_user_ids = array();
+
+        // Get list of already sent user IDs from the batch data
+        if (isset($batch_data['email_queue']) && is_array($batch_data['email_queue'])) {
+            foreach ($batch_data['email_queue'] as $email) {
+                if (isset($email['status']) && $email['status'] === 'sent') {
+                    $sent_user_ids[] = $email['user_id'];
+                }
+            }
+        }
+
+        // Filter out users who already received the email
+        foreach ($all_subscribers as $subscriber) {
+            if (!in_array($subscriber->ID, $sent_user_ids)) {
+                $remaining_subscribers[] = $subscriber;
+            }
+        }
+
+        if (empty($remaining_subscribers)) {
+            self::log_batch_event($batch_id, 'No remaining subscribers for restart');
+            return false;
+        }
+
+        // Prepare email content
+        $email_data = canwbe_prepare_email_content($post);
+
+        // Create new batch for remaining emails
+        $new_batch_id = self::queue_newsletter(
+            $post_id,
+            $remaining_subscribers,
+            $email_data['subject'],
+            $email_data['message'],
+            $email_data['headers'],
+            $email_data['unsubscribe_message']
+        );
+
+        // Update post meta with new batch ID
+        update_post_meta($post_id, '_newsletter_batch_id', $new_batch_id);
+
+        $last_sent_user = isset($batch_data['last_sent_user_id']) ? $batch_data['last_sent_user_id'] : null;
+
+        self::log_batch_event($new_batch_id, 'Batch restarted from previous failure', array(
+            'original_batch_id' => $batch_id,
+            'remaining_emails' => count($remaining_subscribers),
+            'emails_already_sent' => count($sent_user_ids),
+            'started_after_user_id' => $last_sent_user
+        ));
+
+        return $new_batch_id;
+    }
+
+    /**
+     * Get batch status (fixed the undefined array keys issue)
+     */
+    public static function get_batch_status($batch_id) {
+        $batch_data = get_option('canwbe_batch_' . $batch_id);
+
+        if (!$batch_data || !is_array($batch_data)) {
+            return false;
+        }
+
+        // Ensure all required keys exist with defaults
+        $status = isset($batch_data['status']) ? $batch_data['status'] : 'unknown';
+        $total_emails = isset($batch_data['total_emails']) ? (int)$batch_data['total_emails'] : 0;
+        $sent_emails = isset($batch_data['sent_emails']) ? (int)$batch_data['sent_emails'] : 0;
+        $failed_emails = isset($batch_data['failed_emails']) ? (int)$batch_data['failed_emails'] : 0;
+        $created_at = isset($batch_data['created_at']) ? $batch_data['created_at'] : '';
+        $started_at = isset($batch_data['started_at']) ? $batch_data['started_at'] : null;
+        $completed_at = isset($batch_data['completed_at']) ? $batch_data['completed_at'] : null;
+
         return array(
             'batch_id' => $batch_id,
-            'status' => $batch_data['status'],
-            'total_emails' => $batch_data['total_emails'],
-            'sent_emails' => $batch_data['sent_emails'],
-            'failed_emails' => $batch_data['failed_emails'],
-            'progress_percentage' => $batch_data['total_emails'] > 0
-                ? round(($batch_data['sent_emails'] + $batch_data['failed_emails']) / $batch_data['total_emails'] * 100, 2)
+            'status' => $status,
+            'total_emails' => $total_emails,
+            'sent_emails' => $sent_emails,
+            'failed_emails' => $failed_emails,
+            'progress_percentage' => $total_emails > 0
+                ? round(($sent_emails + $failed_emails) / $total_emails * 100, 2)
                 : 0,
-            'created_at' => $batch_data['created_at'],
-            'started_at' => $batch_data['started_at'],
-            'completed_at' => $batch_data['completed_at']
+            'created_at' => $created_at,
+            'started_at' => $started_at,
+            'completed_at' => $completed_at,
+            'last_sent_email' => isset($batch_data['last_sent_email']) ? $batch_data['last_sent_email'] : null,
+            'can_restart' => in_array($status, ['cancelled', 'failed', 'processing']) && $sent_emails > 0
         );
     }
 
@@ -492,6 +597,32 @@ Batch ID: %s', 'create-a-newsletter-with-the-block-editor'),
     }
 
     /**
+     * AJAX handler for canceling and restarting batches
+     */
+    public static function ajax_cancel_and_restart_batch() {
+        check_ajax_referer('canwbe_admin', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        $batch_id = sanitize_text_field($_POST['batch_id']);
+        $new_batch_id = self::cancel_and_restart_batch($batch_id);
+
+        if ($new_batch_id) {
+            wp_send_json_success(array(
+                'restarted' => true,
+                'new_batch_id' => $new_batch_id,
+                'message' => __('Batch cancelled and restarted successfully!', 'create-a-newsletter-with-the-block-editor')
+            ));
+        } else {
+            wp_send_json_error(array(
+                'message' => __('Failed to restart batch. Please check the logs.', 'create-a-newsletter-with-the-block-editor')
+            ));
+        }
+    }
+
+    /**
      * AJAX handler for getting batch status
      */
     public static function ajax_get_batch_status() {
@@ -582,6 +713,7 @@ Batch ID: %s', 'create-a-newsletter-with-the-block-editor'),
                             <th><?php esc_html_e('Status', 'create-a-newsletter-with-the-block-editor'); ?></th>
                             <th><?php esc_html_e('Progress', 'create-a-newsletter-with-the-block-editor'); ?></th>
                             <th><?php esc_html_e('Emails', 'create-a-newsletter-with-the-block-editor'); ?></th>
+                            <th><?php esc_html_e('Last Sent', 'create-a-newsletter-with-the-block-editor'); ?></th>
                             <th><?php esc_html_e('Created', 'create-a-newsletter-with-the-block-editor'); ?></th>
                             <th><?php esc_html_e('Actions', 'create-a-newsletter-with-the-block-editor'); ?></th>
                         </tr>
@@ -591,9 +723,9 @@ Batch ID: %s', 'create-a-newsletter-with-the-block-editor'),
                             <tr id="batch-<?php echo esc_attr($batch['batch_id']); ?>">
                                 <td><code><?php echo esc_html($batch['batch_id']); ?></code></td>
                                 <td>
-                                        <span class="status-<?php echo esc_attr($batch['status']); ?>">
-                                            <?php echo esc_html(ucfirst($batch['status'])); ?>
-                                        </span>
+                <span class="status-<?php echo esc_attr($batch['status']); ?>">
+                    <?php echo esc_html(ucfirst($batch['status'])); ?>
+                </span>
                                 </td>
                                 <td>
                                     <div class="progress-bar">
@@ -609,11 +741,30 @@ Batch ID: %s', 'create-a-newsletter-with-the-block-editor'),
                                         $batch['failed_emails']
                                     ); ?>
                                 </td>
+                                <td>
+                                    <?php if ($batch['last_sent_email']): ?>
+                                        <small><?php echo esc_html($batch['last_sent_email']); ?></small>
+                                    <?php else: ?>
+                                        <span style="color: #666;">—</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?php echo esc_html($batch['created_at']); ?></td>
                                 <td>
                                     <?php if (in_array($batch['status'], ['queued', 'processing'])): ?>
                                         <button class="button cancel-batch" data-batch-id="<?php echo esc_attr($batch['batch_id']); ?>">
                                             <?php esc_html_e('Cancel', 'create-a-newsletter-with-the-block-editor'); ?>
+                                        </button>
+
+                                        <?php if ($batch['sent_emails'] > 0): ?>
+                                            <br><br>
+                                            <button class="button button-primary cancel-restart-batch" data-batch-id="<?php echo esc_attr($batch['batch_id']); ?>">
+                                                <?php esc_html_e('Cancel & Restart at Last Sent', 'create-a-newsletter-with-the-block-editor'); ?>
+                                            </button>
+                                        <?php endif; ?>
+
+                                    <?php elseif ($batch['can_restart'] && $batch['status'] !== 'completed'): ?>
+                                        <button class="button button-primary restart-batch" data-batch-id="<?php echo esc_attr($batch['batch_id']); ?>">
+                                            <?php esc_html_e('Restart from Last Sent', 'create-a-newsletter-with-the-block-editor'); ?>
                                         </button>
                                     <?php endif; ?>
                                 </td>
@@ -632,6 +783,7 @@ Batch ID: %s', 'create-a-newsletter-with-the-block-editor'),
                 background-color: #f0f0f0;
                 border-radius: 10px;
                 overflow: hidden;
+                margin-bottom: 5px;
             }
             .progress-fill {
                 height: 100%;
@@ -643,17 +795,37 @@ Batch ID: %s', 'create-a-newsletter-with-the-block-editor'),
             .status-queued { color: #2196F3; font-weight: bold; }
             .status-cancelled { color: #f44336; font-weight: bold; }
             .status-failed { color: #f44336; font-weight: bold; }
+
+            /* NEW: Styles for restart buttons */
+            .button.cancel-restart-batch {
+                background: #d63638;
+                border-color: #d63638;
+                color: white;
+                margin-left: 5px;
+            }
+            .button.restart-batch {
+                background: #00a32a;
+                border-color: #00a32a;
+                color: white;
+            }
+            .button.cancel-batch {
+                margin-right: 5px;
+            }
+
+            /* Better spacing in action cells */
+            td .button + .button {
+                margin-top: 5px;
+            }
         </style>
 
         <script>
             jQuery(document).ready(function($) {
+                // Regular cancel batch
                 $('.cancel-batch').on('click', function() {
                     const batchId = $(this).data('batch-id');
-
                     if (!confirm('<?php esc_html_e('Are you sure you want to cancel this batch?', 'create-a-newsletter-with-the-block-editor'); ?>')) {
                         return;
                     }
-
                     $.post(ajaxurl, {
                         action: 'canwbe_cancel_batch',
                         batch_id: batchId,
@@ -662,6 +834,45 @@ Batch ID: %s', 'create-a-newsletter-with-the-block-editor'),
                         if (response.success) {
                             location.reload();
                         }
+                    });
+                });
+
+                // Cancel and restart batch
+                $('.cancel-restart-batch, .restart-batch').on('click', function() {
+                    const batchId = $(this).data('batch-id');
+                    const isRestart = $(this).hasClass('restart-batch');
+                    const confirmMessage = isRestart ?
+                        '<?php esc_html_e('Are you sure you want to restart this batch from the last sent email?', 'create-a-newsletter-with-the-block-editor'); ?>' :
+                        '<?php esc_html_e('Are you sure you want to cancel this batch and restart from the last sent email?', 'create-a-newsletter-with-the-block-editor'); ?>';
+
+                    if (!confirm(confirmMessage)) {
+                        return;
+                    }
+
+                    // Show loading state
+                    $(this).prop('disabled', true).text('<?php esc_html_e('Processing...', 'create-a-newsletter-with-the-block-editor'); ?>');
+
+                    $.post(ajaxurl, {
+                        action: 'canwbe_cancel_and_restart_batch',
+                        batch_id: batchId,
+                        nonce: '<?php echo wp_create_nonce('canwbe_admin'); ?>'
+                    }, function(response) {
+                        if (response.success) {
+                            // Show success message
+                            $('<div class="notice notice-success is-dismissible"><p>' + response.data.message + '</p></div>')
+                                .insertAfter('h1').delay(3000).fadeOut();
+
+                            // Reload page after a short delay to show the new batch
+                            setTimeout(function() {
+                                location.reload();
+                            }, 1500);
+                        } else {
+                            alert(response.data.message || '<?php esc_html_e('Failed to restart batch. Please check the logs.', 'create-a-newsletter-with-the-block-editor'); ?>');
+                            location.reload();
+                        }
+                    }).fail(function() {
+                        alert('<?php esc_html_e('Error communicating with server. Please try again.', 'create-a-newsletter-with-the-block-editor'); ?>');
+                        location.reload();
                     });
                 });
 
