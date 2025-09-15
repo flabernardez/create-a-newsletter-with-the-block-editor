@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Create a Newsletter with the Block Editor
  * Description: Creates a newsletter in Substack style using the content editor.
- * Version: 1.3
+ * Version: 1.4
  * Author: Flavia Bernárdez Rodríguez
  * Author URI: https://flabernardez.com
  * License: GPL v3 or later
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('CANWBE_VERSION', '1.3');
+define('CANWBE_VERSION', '1.4');
 define('CANWBE_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('CANWBE_PLUGIN_PATH', plugin_dir_path(__FILE__));
 
@@ -30,10 +30,13 @@ require_once CANWBE_PLUGIN_PATH . 'includes/pages-manager.php';
 require_once CANWBE_PLUGIN_PATH . 'includes/subscriber-management.php';
 require_once CANWBE_PLUGIN_PATH . 'includes/email-settings.php';
 
-// Include advanced features (optional)
+// Include advanced features (optional but recommended)
 $advanced_files = array(
     'includes/batch-email-sender.php',
-    'includes/batch-email-config.php'
+    'includes/batch-email-config.php',
+    'includes/debug-batch.php',
+    'includes/newsletter-analytics.php',
+    'includes/subscription-form-block.php'
 );
 
 foreach ($advanced_files as $file) {
