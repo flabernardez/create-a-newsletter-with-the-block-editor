@@ -55,6 +55,9 @@ const NewsletterMetaFields = () => {
         .filter(role => recipientRoles.includes(role.value))
         .map(role => role.label);
 
+    // Get translatable help text from config
+    const helpTextRoles = window.canwbeConfig?.i18n?.helpTextRoles || __('Separate with commas or Enter key.', 'create-a-newsletter-with-the-block-editor');
+
     return (
         <PluginDocumentSettingPanel
             name="canwbe-meta-fields-panel"
@@ -87,7 +90,7 @@ const NewsletterMetaFields = () => {
 
                     updateMeta('canwbe_recipient_roles', selectedValues);
                 }}
-                help={__('Separate with commas or Enter key.', 'create-a-newsletter-with-the-block-editor')}
+                help={helpTextRoles}
             />
         </PluginDocumentSettingPanel>
     );

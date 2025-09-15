@@ -147,6 +147,10 @@ function canwbe_enqueue_editor_assets() {
             'pluginUrl' => CANWBE_PLUGIN_URL,
             'ajaxUrl'   => admin_url('admin-ajax.php'),
             'nonce'     => wp_create_nonce('canwbe_editor_nonce'),
+            // Add translatable strings for JavaScript
+            'i18n'     => array(
+                'helpTextRoles' => __('Separate with commas or Enter key.', 'create-a-newsletter-with-the-block-editor'),
+            ),
         )
     );
 }

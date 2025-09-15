@@ -2,7 +2,7 @@
 /**
  * Newsletter Analytics
  *
- * Handles newsletter analytics and metrics integration with WP Mail SMTP
+ * Handles newsletter analytics using batch system logs and WP Mail SMTP
  *
  * @package Create_A_Newsletter_With_The_Block_Editor
  * @since 1.4
@@ -18,52 +18,8 @@ class CANWBE_Newsletter_Analytics {
      * Initialize analytics system
      */
     public static function init() {
-        // Only initialize if WP Mail SMTP is active
-        if (!self::is_wp_mail_smtp_active()) {
-            return;
-        }
-
-        add_action('admin_menu', array(__CLASS__, 'add_analytics_menu'));
+        add_action('admin_menu', array(__CLASS__, 'add_analytics_menu'), 20);
         add_action('wp_ajax_canwbe_refresh_analytics', array(__CLASS__, 'ajax_refresh_analytics'));
-
-        // Hook into email sending to track metrics
-        add_action('canwbe_email_sent_successfully', array(__CLASS__, 'track_email_sent'), 10, 3);
-
-        // Hook into WP Mail SMTP for open tracking
-        self::setup_wp_mail_smtp_integration();
-    }
-
-    /**
-     * Check if WP Mail SMTP is active and has logging enabled
-     */
-    public static function is_wp_mail_smtp_active() {
-        return function_exists('wp_mail_smtp') &&
-            class_exists('WPMailSMTP\Logs\Logs') &&
-            self::is_wp_mail_smtp_logging_enabled();
-    }
-
-    /**
-     * Check if WP Mail SMTP logging is enabled
-     */
-    public static function is_wp_mail_smtp_logging_enabled() {
-        if (!function_exists('wp_mail_smtp')) {
-            return false;
-        }
-
-        $options = wp_mail_smtp()->get_options();
-        return $options->get('logs', 'enabled', false);
-    }
-
-    /**
-     * Check if WP Mail SMTP open tracking is enabled
-     */
-    public static function is_wp_mail_smtp_open_tracking_enabled() {
-        if (!function_exists('wp_mail_smtp')) {
-            return false;
-        }
-
-        $options = wp_mail_smtp()->get_options();
-        return $options->get('logs', 'email_open_tracking', false);
     }
 
     /**
@@ -81,194 +37,266 @@ class CANWBE_Newsletter_Analytics {
     }
 
     /**
+     * Get WP Mail SMTP table info
+     */
+    public static function get_wp_mail_smtp_table() {
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . 'wpmailsmtp_emails_log';
+
+        // Verificar si la tabla existe
+        if ($wpdb->get_var("SHOW TABLES LIKE '{$table_name}'") !== $table_name) {
+            return false;
+        }
+
+        // Obtener estructura de la tabla
+        $columns = $wpdb->get_results("DESCRIBE {$table_name}");
+        $column_names = array();
+
+        foreach ($columns as $column) {
+            $column_names[] = $column->Field;
+        }
+
+        return array(
+            'table_name' => $table_name,
+            'columns' => $column_names
+        );
+    }
+
+    /**
      * Analytics admin page
      */
     public static function analytics_page() {
-        // Check if WP Mail SMTP is properly configured
-        if (!self::is_wp_mail_smtp_active()) {
-            self::render_setup_notice();
-            return;
-        }
-
+        $wp_mail_table = self::get_wp_mail_smtp_table();
         $analytics_data = self::get_analytics_data();
-        $recent_newsletters = self::get_recent_newsletters_with_stats();
+        $newsletter_campaigns = self::get_newsletter_campaigns();
 
         ?>
         <div class="wrap">
             <h1>
                 <?php esc_html_e('Newsletter Analytics', 'create-a-newsletter-with-the-block-editor'); ?>
-                <button type="button" class="page-title-action" id="refresh-analytics">
-                    🔄 <?php esc_html_e('Refresh Data', 'create-a-newsletter-with-the-block-editor'); ?>
+                <button type="button" class="page-title-action" onclick="location.reload()">
+                    <?php esc_html_e('Refresh Data', 'create-a-newsletter-with-the-block-editor'); ?>
                 </button>
             </h1>
 
-            <?php if (!self::is_wp_mail_smtp_open_tracking_enabled()): ?>
-                <div class="notice notice-warning">
+            <!-- System Status -->
+            <div class="notice notice-success">
+                <p><strong>System Status:</strong></p>
+                <ul>
+                    <li>WP Mail SMTP: <?php echo function_exists('wp_mail_smtp') ? '✅ Active' : '❌ Not found'; ?></li>
+                    <li>Logs Table: <?php echo $wp_mail_table ? '✅ Found (' . esc_html($wp_mail_table['table_name']) . ')' : '❌ Not found'; ?></li>
+                    <li>Batch System: <?php echo class_exists('CANWBE_Batch_Email_Sender') ? '✅ Active' : '❌ Not available'; ?></li>
+                </ul>
+            </div>
+
+            <!-- Overview Cards -->
+            <div class="canwbe-analytics-overview">
+                <div class="canwbe-metric-card">
+                    <div class="canwbe-metric-number"><?php echo esc_html(number_format_i18n($analytics_data['total_newsletters'])); ?></div>
+                    <div class="canwbe-metric-label"><?php esc_html_e('Newsletters Sent', 'create-a-newsletter-with-the-block-editor'); ?></div>
+                    <div class="canwbe-metric-period"><?php esc_html_e('Total campaigns', 'create-a-newsletter-with-the-block-editor'); ?></div>
+                </div>
+
+                <div class="canwbe-metric-card">
+                    <div class="canwbe-metric-number"><?php echo esc_html(number_format_i18n($analytics_data['total_emails_sent'])); ?></div>
+                    <div class="canwbe-metric-label"><?php esc_html_e('Emails Delivered', 'create-a-newsletter-with-the-block-editor'); ?></div>
+                    <div class="canwbe-metric-period"><?php esc_html_e('From batch system', 'create-a-newsletter-with-the-block-editor'); ?></div>
+                </div>
+
+                <div class="canwbe-metric-card">
+                    <div class="canwbe-metric-number"><?php echo esc_html(number_format_i18n($analytics_data['total_subscribers'])); ?></div>
+                    <div class="canwbe-metric-label"><?php esc_html_e('Active Subscribers', 'create-a-newsletter-with-the-block-editor'); ?></div>
+                    <div class="canwbe-metric-period"><?php esc_html_e('Current', 'create-a-newsletter-with-the-block-editor'); ?></div>
+                </div>
+
+                <div class="canwbe-metric-card">
+                    <div class="canwbe-metric-number"><?php echo esc_html(number_format_i18n($analytics_data['smtp_logs_count'])); ?></div>
+                    <div class="canwbe-metric-label"><?php esc_html_e('SMTP Logs', 'create-a-newsletter-with-the-block-editor'); ?></div>
+                    <div class="canwbe-metric-period"><?php esc_html_e('Total emails', 'create-a-newsletter-with-the-block-editor'); ?></div>
+                </div>
+            </div>
+
+            <!-- Newsletter Campaigns -->
+            <div class="card" style="margin-top: 30px;">
+                <h2><?php esc_html_e('Newsletter Campaigns', 'create-a-newsletter-with-the-block-editor'); ?></h2>
+                <p><?php esc_html_e('Newsletters sent through the batch system', 'create-a-newsletter-with-the-block-editor'); ?></p>
+
+                <?php if (empty($newsletter_campaigns)): ?>
+                    <div class="notice notice-info inline">
+                        <p><strong><?php esc_html_e('No newsletter campaigns found.', 'create-a-newsletter-with-the-block-editor'); ?></strong></p>
+                        <p><?php esc_html_e('This could mean:', 'create-a-newsletter-with-the-block-editor'); ?></p>
+                        <ul>
+                            <li><?php esc_html_e('No newsletters have been sent through the batch system yet', 'create-a-newsletter-with-the-block-editor'); ?></li>
+                            <li><?php esc_html_e('Batch data has been cleaned up (older than 30 days)', 'create-a-newsletter-with-the-block-editor'); ?></li>
+                        </ul>
+                        <p>
+                            <a href="<?php echo admin_url('post-new.php?post_type=newsletter'); ?>" class="button button-primary">
+                                <?php esc_html_e('Create Your First Newsletter', 'create-a-newsletter-with-the-block-editor'); ?>
+                            </a>
+                        </p>
+                    </div>
+                <?php else: ?>
+                    <div class="table-full-width">
+                        <table class="wp-list-table widefat striped canwbe-campaigns-table">
+                            <thead>
+                            <tr>
+                                <th><?php esc_html_e('Newsletter Title', 'create-a-newsletter-with-the-block-editor'); ?></th>
+                                <th><?php esc_html_e('Recipients', 'create-a-newsletter-with-the-block-editor'); ?></th>
+                                <th><?php esc_html_e('Delivered', 'create-a-newsletter-with-the-block-editor'); ?></th>
+                                <th><?php esc_html_e('Opens', 'create-a-newsletter-with-the-block-editor'); ?></th>
+                                <th><?php esc_html_e('Open Rate', 'create-a-newsletter-with-the-block-editor'); ?></th>
+                                <th><?php esc_html_e('Failed', 'create-a-newsletter-with-the-block-editor'); ?></th>
+                                <th><?php esc_html_e('Status', 'create-a-newsletter-with-the-block-editor'); ?></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($newsletter_campaigns as $campaign): ?>
+                                <tr>
+                                    <td class="title-cell">
+                                        <strong>
+                                            <a href="<?php echo esc_url(get_edit_post_link($campaign['post_id'])); ?>">
+                                                <?php echo esc_html($campaign['title']); ?>
+                                            </a>
+                                        </strong>
+                                        <br>
+                                        <small style="color: #666;">
+                                            <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($campaign['created_at']))); ?>
+                                        </small>
+                                        <?php if ($campaign['batch_id']): ?>
+                                            <br>
+                                            <small>
+                                                <code><?php echo esc_html($campaign['batch_id']); ?></code>
+                                            </small>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="number-cell"><?php echo esc_html(number_format_i18n($campaign['total_emails'])); ?></td>
+                                    <td class="number-cell">
+                                        <span style="color: #00a32a; font-weight: bold;">
+                                            <?php echo esc_html(number_format_i18n($campaign['sent_emails'])); ?>
+                                        </span>
+                                    </td>
+                                    <td class="number-cell">
+                                        <?php if ($campaign['opens'] > 0): ?>
+                                            <span style="color: #2271b1; font-weight: bold;">
+                                                <?php echo esc_html(number_format_i18n($campaign['opens'])); ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span style="color: #666;">—</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="number-cell">
+                                        <?php
+                                        $open_rate = $campaign['sent_emails'] > 0 ? round(($campaign['opens'] / $campaign['sent_emails']) * 100, 1) : 0;
+                                        if ($open_rate > 0):
+                                            $rate_color = $open_rate >= 25 ? '#00a32a' : ($open_rate >= 15 ? '#dba617' : '#d63638');
+                                            ?>
+                                            <span style="color: <?php echo esc_attr($rate_color); ?>; font-weight: bold;">
+                                                <?php echo esc_html($open_rate . '%'); ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span style="color: #666;">—</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="number-cell">
+                                        <?php if ($campaign['failed_emails'] > 0): ?>
+                                            <span style="color: #d63638; font-weight: bold;">
+                                                <?php echo esc_html(number_format_i18n($campaign['failed_emails'])); ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span style="color: #666;">0</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="status-cell">
+                                        <?php
+                                        $status_colors = array(
+                                            'completed' => '#00a32a',
+                                            'processing' => '#dba617',
+                                            'queued' => '#2271b1',
+                                            'cancelled' => '#d63638',
+                                            'failed' => '#d63638'
+                                        );
+                                        $color = isset($status_colors[$campaign['status']]) ? $status_colors[$campaign['status']] : '#666';
+                                        ?>
+                                        <span style="color: <?php echo esc_attr($color); ?>; font-weight: bold;">
+                                            <?php echo esc_html(ucfirst($campaign['status'])); ?>
+                                        </span>
+                                        <?php if ($campaign['status'] === 'completed' && $campaign['failed_emails'] === 0): ?>
+                                            <br><small style="color: #00a32a;">✓ Perfect delivery</small>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- WP Mail SMTP Integration -->
+            <?php if ($wp_mail_table): ?>
+                <div class="card" style="margin-top: 20px;">
+                    <h3><?php esc_html_e('WP Mail SMTP Integration', 'create-a-newsletter-with-the-block-editor'); ?></h3>
+
+                    <?php
+                    // Obtener algunos datos de ejemplo de la tabla de WP Mail SMTP
+                    global $wpdb;
+                    $sample_emails = $wpdb->get_results("
+                    SELECT subject, status, date_sent 
+                    FROM {$wp_mail_table['table_name']} 
+                    ORDER BY date_sent DESC 
+                    LIMIT 5
+                ");
+                    ?>
+
+                    <p><strong>Recent emails in WP Mail SMTP logs:</strong></p>
+                    <?php if ($sample_emails): ?>
+                        <table class="form-table">
+                            <?php foreach ($sample_emails as $email): ?>
+                                <tr>
+                                    <td style="width: 50%;"><?php echo esc_html($email->subject); ?></td>
+                                    <td style="width: 20%;"><?php echo esc_html($email->status); ?></td>
+                                    <td style="width: 30%;"><?php echo esc_html(date_i18n('Y-m-d H:i', strtotime($email->date_sent))); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </table>
+                    <?php else: ?>
+                        <p><?php esc_html_e('No emails found in SMTP logs.', 'create-a-newsletter-with-the-block-editor'); ?></p>
+                    <?php endif; ?>
+
                     <p>
-                        <strong><?php esc_html_e('Open Tracking Disabled', 'create-a-newsletter-with-the-block-editor'); ?></strong><br>
-                        <?php esc_html_e('Email open tracking is disabled in WP Mail SMTP. Enable it to see open rates.', 'create-a-newsletter-with-the-block-editor'); ?>
-                        <a href="<?php echo admin_url('admin.php?page=wp-mail-smtp-logs'); ?>" class="button button-small" style="margin-left: 10px;">
-                            <?php esc_html_e('WP Mail SMTP Settings', 'create-a-newsletter-with-the-block-editor'); ?>
+                        <a href="<?php echo admin_url('admin.php?page=wp-mail-smtp-logs'); ?>" class="button">
+                            <?php esc_html_e('View Full SMTP Logs', 'create-a-newsletter-with-the-block-editor'); ?>
                         </a>
                     </p>
                 </div>
             <?php endif; ?>
 
-            <!-- Overview Cards -->
-            <div class="canwbe-analytics-overview">
-                <div class="canwbe-metric-card">
-                    <div class="canwbe-metric-number"><?php echo esc_html(number_format_i18n($analytics_data['total_sent'])); ?></div>
-                    <div class="canwbe-metric-label"><?php esc_html_e('Total Emails Sent', 'create-a-newsletter-with-the-block-editor'); ?></div>
-                    <div class="canwbe-metric-period"><?php esc_html_e('All time', 'create-a-newsletter-with-the-block-editor'); ?></div>
-                </div>
-
-                <div class="canwbe-metric-card">
-                    <div class="canwbe-metric-number"><?php echo esc_html(number_format_i18n($analytics_data['total_opens'])); ?></div>
-                    <div class="canwbe-metric-label"><?php esc_html_e('Total Email Opens', 'create-a-newsletter-with-the-block-editor'); ?></div>
-                    <div class="canwbe-metric-period"><?php esc_html_e('All time', 'create-a-newsletter-with-the-block-editor'); ?></div>
-                </div>
-
-                <div class="canwbe-metric-card">
-                    <div class="canwbe-metric-number">
-                        <?php
-                        $open_rate = $analytics_data['total_sent'] > 0
-                            ? round(($analytics_data['total_opens'] / $analytics_data['total_sent']) * 100, 1)
-                            : 0;
-                        echo esc_html($open_rate . '%');
-                        ?>
-                    </div>
-                    <div class="canwbe-metric-label"><?php esc_html_e('Average Open Rate', 'create-a-newsletter-with-the-block-editor'); ?></div>
-                    <div class="canwbe-metric-period">
-                        <?php
-                        if ($open_rate >= 25) {
-                            echo '<span style="color: #00a32a;">✓ ' . esc_html__('Excellent', 'create-a-newsletter-with-the-block-editor') . '</span>';
-                        } elseif ($open_rate >= 15) {
-                            echo '<span style="color: #dba617;">⚠ ' . esc_html__('Good', 'create-a-newsletter-with-the-block-editor') . '</span>';
-                        } else {
-                            echo '<span style="color: #d63638;">! ' . esc_html__('Needs improvement', 'create-a-newsletter-with-the-block-editor') . '</span>';
-                        }
-                        ?>
-                    </div>
-                </div>
-
-                <div class="canwbe-metric-card">
-                    <div class="canwbe-metric-number"><?php echo esc_html(number_format_i18n($analytics_data['newsletters_sent'])); ?></div>
-                    <div class="canwbe-metric-label"><?php esc_html_e('Newsletters Sent', 'create-a-newsletter-with-the-block-editor'); ?></div>
-                    <div class="canwbe-metric-period"><?php esc_html_e('All time', 'create-a-newsletter-with-the-block-editor'); ?></div>
-                </div>
-            </div>
-
-            <!-- Recent Newsletters Table -->
-            <div class="card" style="margin-top: 30px;">
-                <h2><?php esc_html_e('Recent Newsletter Performance', 'create-a-newsletter-with-the-block-editor'); ?></h2>
-
-                <?php if (empty($recent_newsletters)): ?>
-                    <p><?php esc_html_e('No newsletter data found. Send some newsletters to see analytics here.', 'create-a-newsletter-with-the-block-editor'); ?></p>
-                <?php else: ?>
-                    <table class="wp-list-table widefat fixed striped">
-                        <thead>
-                        <tr>
-                            <th><?php esc_html_e('Newsletter', 'create-a-newsletter-with-the-block-editor'); ?></th>
-                            <th><?php esc_html_e('Sent Date', 'create-a-newsletter-with-the-block-editor'); ?></th>
-                            <th><?php esc_html_e('Recipients', 'create-a-newsletter-with-the-block-editor'); ?></th>
-                            <th><?php esc_html_e('Delivered', 'create-a-newsletter-with-the-block-editor'); ?></th>
-                            <th><?php esc_html_e('Opens', 'create-a-newsletter-with-the-block-editor'); ?></th>
-                            <th><?php esc_html_e('Open Rate', 'create-a-newsletter-with-the-block-editor'); ?></th>
-                            <th><?php esc_html_e('Status', 'create-a-newsletter-with-the-block-editor'); ?></th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <?php foreach ($recent_newsletters as $newsletter): ?>
-                            <tr>
-                                <td>
-                                    <strong>
-                                        <a href="<?php echo esc_url(get_edit_post_link($newsletter['post_id'])); ?>">
-                                            <?php echo esc_html($newsletter['title']); ?>
-                                        </a>
-                                    </strong>
-                                    <?php if ($newsletter['batch_id']): ?>
-                                        <br><small>Batch: <code><?php echo esc_html($newsletter['batch_id']); ?></code></small>
-                                    <?php endif; ?>
-                                </td>
-                                <td><?php echo esc_html($newsletter['sent_date']); ?></td>
-                                <td><?php echo esc_html(number_format_i18n($newsletter['total_recipients'])); ?></td>
-                                <td>
-                                    <span style="color: #00a32a;"><?php echo esc_html(number_format_i18n($newsletter['delivered'])); ?></span>
-                                    <?php if ($newsletter['failed'] > 0): ?>
-                                        <br><small style="color: #d63638;"><?php echo esc_html($newsletter['failed']); ?> failed</small>
-                                    <?php endif; ?>
-                                </td>
-                                <td><?php echo esc_html(number_format_i18n($newsletter['opens'])); ?></td>
-                                <td>
-                                    <?php
-                                    $newsletter_open_rate = $newsletter['delivered'] > 0
-                                        ? round(($newsletter['opens'] / $newsletter['delivered']) * 100, 1)
-                                        : 0;
-                                    $rate_color = $newsletter_open_rate >= 25 ? '#00a32a' : ($newsletter_open_rate >= 15 ? '#dba617' : '#d63638');
-                                    ?>
-                                    <span style="color: <?php echo $rate_color; ?>; font-weight: bold;">
-                                        <?php echo esc_html($newsletter_open_rate . '%'); ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="status-<?php echo esc_attr($newsletter['status']); ?>">
-                                        <?php echo esc_html(ucfirst($newsletter['status'])); ?>
-                                    </span>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                <?php endif; ?>
-            </div>
-
-            <!-- Integration Info -->
+            <!-- Debug Information -->
             <div class="card" style="margin-top: 20px;">
-                <h3><?php esc_html_e('Integration Status', 'create-a-newsletter-with-the-block-editor'); ?></h3>
+                <h3><?php esc_html_e('Debug Information', 'create-a-newsletter-with-the-block-editor'); ?></h3>
+
                 <table class="form-table">
                     <tr>
-                        <th><?php esc_html_e('WP Mail SMTP', 'create-a-newsletter-with-the-block-editor'); ?></th>
+                        <th>WP Mail SMTP Table:</th>
                         <td>
-                            <span style="color: #00a32a;">✅ <?php esc_html_e('Active', 'create-a-newsletter-with-the-block-editor'); ?></span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th><?php esc_html_e('Email Logging', 'create-a-newsletter-with-the-block-editor'); ?></th>
-                        <td>
-                            <?php if (self::is_wp_mail_smtp_logging_enabled()): ?>
-                                <span style="color: #00a32a;">✅ <?php esc_html_e('Enabled', 'create-a-newsletter-with-the-block-editor'); ?></span>
+                            <?php if ($wp_mail_table): ?>
+                                <code><?php echo esc_html($wp_mail_table['table_name']); ?></code>
+                                <br>Columns: <?php echo esc_html(implode(', ', $wp_mail_table['columns'])); ?>
                             <?php else: ?>
-                                <span style="color: #d63638;">❌ <?php esc_html_e('Disabled', 'create-a-newsletter-with-the-block-editor'); ?></span>
+                                Not found
                             <?php endif; ?>
                         </td>
                     </tr>
                     <tr>
-                        <th><?php esc_html_e('Open Tracking', 'create-a-newsletter-with-the-block-editor'); ?></th>
-                        <td>
-                            <?php if (self::is_wp_mail_smtp_open_tracking_enabled()): ?>
-                                <span style="color: #00a32a;">✅ <?php esc_html_e('Enabled', 'create-a-newsletter-with-the-block-editor'); ?></span>
-                            <?php else: ?>
-                                <span style="color: #dba617;">⚠️ <?php esc_html_e('Disabled', 'create-a-newsletter-with-the-block-editor'); ?></span>
-                            <?php endif; ?>
-                        </td>
+                        <th>Published Newsletters:</th>
+                        <td><?php echo esc_html($analytics_data['published_newsletters']); ?></td>
                     </tr>
                     <tr>
-                        <th><?php esc_html_e('Data Source', 'create-a-newsletter-with-the-block-editor'); ?></th>
-                        <td>
-                            <?php esc_html_e('WP Mail SMTP Logs Database', 'create-a-newsletter-with-the-block-editor'); ?>
-                            <br><small><?php esc_html_e('Analytics are generated from WP Mail SMTP log entries', 'create-a-newsletter-with-the-block-editor'); ?></small>
-                        </td>
+                        <th>Batch Options in Database:</th>
+                        <td><?php echo esc_html($analytics_data['batch_options_count']); ?></td>
                     </tr>
                 </table>
-
-                <p>
-                    <a href="<?php echo admin_url('admin.php?page=wp-mail-smtp-logs'); ?>" class="button">
-                        <?php esc_html_e('View WP Mail SMTP Logs', 'create-a-newsletter-with-the-block-editor'); ?>
-                    </a>
-                    <a href="<?php echo admin_url('admin.php?page=wp-mail-smtp-settings'); ?>" class="button">
-                        <?php esc_html_e('WP Mail SMTP Settings', 'create-a-newsletter-with-the-block-editor'); ?>
-                    </a>
-                </p>
             </div>
         </div>
 
@@ -313,280 +341,205 @@ class CANWBE_Newsletter_Analytics {
                 border-left: 4px solid #72aee6;
                 box-shadow: 0 1px 1px rgba(0,0,0,.04);
                 padding: 1em 2em;
-            }
-
-            .status-completed { color: #00a32a; font-weight: bold; }
-            .status-processing { color: #dba617; font-weight: bold; }
-            .status-failed { color: #d63638; font-weight: bold; }
-
-            #refresh-analytics {
-                background: #2271b1;
-                border-color: #2271b1;
-                color: white;
-            }
-
-            #refresh-analytics:hover {
-                background: #135e96;
-                border-color: #135e96;
-            }
-        </style>
-
-        <script>
-            jQuery(document).ready(function($) {
-                $('#refresh-analytics').on('click', function() {
-                    const button = $(this);
-                    const originalText = button.text();
-
-                    button.prop('disabled', true).text('🔄 <?php echo esc_js(__('Refreshing...', 'create-a-newsletter-with-the-block-editor')); ?>');
-
-                    $.post(ajaxurl, {
-                        action: 'canwbe_refresh_analytics',
-                        nonce: '<?php echo wp_create_nonce('canwbe_analytics'); ?>'
-                    }, function(response) {
-                        if (response.success) {
-                            location.reload();
-                        } else {
-                            alert('<?php echo esc_js(__('Error refreshing analytics. Please try again.', 'create-a-newsletter-with-the-block-editor')); ?>');
-                        }
-                    }).always(function() {
-                        button.prop('disabled', false).text(originalText);
-                    });
-                });
-            });
-        </script>
-        <?php
-    }
-
-    /**
-     * Render setup notice when WP Mail SMTP is not properly configured
-     */
-    public static function render_setup_notice() {
-        ?>
-        <div class="wrap">
-            <h1><?php esc_html_e('Newsletter Analytics', 'create-a-newsletter-with-the-block-editor'); ?></h1>
-
-            <div class="notice notice-warning">
-                <h2><?php esc_html_e('WP Mail SMTP Required', 'create-a-newsletter-with-the-block-editor'); ?></h2>
-                <p><?php esc_html_e('Newsletter analytics requires WP Mail SMTP plugin with logging enabled to track email metrics.', 'create-a-newsletter-with-the-block-editor'); ?></p>
-            </div>
-
-            <div class="card">
-                <h2><?php esc_html_e('Setup Instructions', 'create-a-newsletter-with-the-block-editor'); ?></h2>
-
-                <h3><?php esc_html_e('Step 1: Install WP Mail SMTP', 'create-a-newsletter-with-the-block-editor'); ?></h3>
-                <?php if (!function_exists('wp_mail_smtp')): ?>
-                    <p>
-                        <a href="<?php echo admin_url('plugin-install.php?s=wp-mail-smtp&tab=search&type=term'); ?>" class="button button-primary">
-                            <?php esc_html_e('Install WP Mail SMTP Plugin', 'create-a-newsletter-with-the-block-editor'); ?>
-                        </a>
-                    </p>
-                <?php else: ?>
-                    <p style="color: #00a32a;">✅ <?php esc_html_e('WP Mail SMTP is installed', 'create-a-newsletter-with-the-block-editor'); ?></p>
-                <?php endif; ?>
-
-                <h3><?php esc_html_e('Step 2: Enable Email Logging', 'create-a-newsletter-with-the-block-editor'); ?></h3>
-                <p><?php esc_html_e('Go to WP Mail SMTP settings and enable email logging to track sent emails.', 'create-a-newsletter-with-the-block-editor'); ?></p>
-                <?php if (function_exists('wp_mail_smtp')): ?>
-                    <p>
-                        <a href="<?php echo admin_url('admin.php?page=wp-mail-smtp-logs'); ?>" class="button">
-                            <?php esc_html_e('WP Mail SMTP Logs Settings', 'create-a-newsletter-with-the-block-editor'); ?>
-                        </a>
-                    </p>
-                <?php endif; ?>
-
-                <h3><?php esc_html_e('Step 3: Enable Open Tracking (Optional)', 'create-a-newsletter-with-the-block-editor'); ?></h3>
-                <p><?php esc_html_e('For open rate tracking, enable email open tracking in WP Mail SMTP settings.', 'create-a-newsletter-with-the-block-editor'); ?></p>
-
-                <h3><?php esc_html_e('What You\'ll Get', 'create-a-newsletter-with-the-block-editor'); ?></h3>
-                <ul>
-                    <li>✅ <?php esc_html_e('Total emails sent across all newsletters', 'create-a-newsletter-with-the-block-editor'); ?></li>
-                    <li>✅ <?php esc_html_e('Email open tracking and rates', 'create-a-newsletter-with-the-block-editor'); ?></li>
-                    <li>✅ <?php esc_html_e('Individual newsletter performance metrics', 'create-a-newsletter-with-the-block-editor'); ?></li>
-                    <li>✅ <?php esc_html_e('Delivery success and failure tracking', 'create-a-newsletter-with-the-block-editor'); ?></li>
-                    <li>✅ <?php esc_html_e('Historical analytics across all campaigns', 'create-a-newsletter-with-the-block-editor'); ?></li>
-                </ul>
-            </div>
-        </div>
-
-        <style>
-            .card {
-                background: white;
-                border: 1px solid #c3c4c7;
-                border-left: 4px solid #72aee6;
-                box-shadow: 0 1px 1px rgba(0,0,0,.04);
-                padding: 1em 2em;
                 margin: 20px 0;
             }
+
+            .notice.inline {
+                margin: 0 0 20px 0;
+                padding: 10px 15px;
+            }
+
+            .table-full-width {
+                margin: 0 -2em; /* Extend beyond card padding */
+                background: white;
+            }
+
+            .canwbe-campaigns-table {
+                margin: 0;
+                width: 100%;
+                table-layout: auto;
+                border-left: none;
+                border-right: none;
+                border-collapse: collapse;
+            }
+
+            .canwbe-campaigns-table th,
+            .canwbe-campaigns-table td {
+                padding: 15px 20px;
+                border-bottom: 1px solid #e1e1e1;
+            }
+
+            .canwbe-campaigns-table th {
+                background: #f9f9f9;
+                font-weight: 600;
+                text-align: left;
+            }
+
+            .title-cell {
+                min-width: 300px;
+                word-wrap: break-word;
+            }
+
+            .number-cell {
+                text-align: center;
+                font-weight: bold;
+                white-space: nowrap;
+                min-width: 80px;
+            }
+
+            .status-cell {
+                text-align: center;
+                min-width: 120px;
+            }
         </style>
         <?php
     }
 
     /**
-     * Get analytics data from WP Mail SMTP logs
+     * Get analytics data from our own batch system
      */
     public static function get_analytics_data() {
         global $wpdb;
 
         $data = array(
-            'total_sent' => 0,
-            'total_opens' => 0,
-            'newsletters_sent' => 0
+            'total_newsletters' => 0,
+            'total_emails_sent' => 0,
+            'total_subscribers' => 0,
+            'smtp_logs_count' => 0,
+            'published_newsletters' => 0,
+            'batch_options_count' => 0
         );
 
-        if (!self::is_wp_mail_smtp_active()) {
-            return $data;
+        // Obtener newsletters publicados
+        $newsletters = get_posts(array(
+            'post_type' => 'newsletter',
+            'post_status' => 'publish',
+            'numberposts' => -1,
+            'fields' => 'ids'
+        ));
+        $data['published_newsletters'] = count($newsletters);
+
+        // Obtener suscriptores activos
+        $subscribers = get_users(array(
+            'role' => 'newsletter_subscriber',
+            'fields' => 'ID'
+        ));
+        $data['total_subscribers'] = count($subscribers);
+
+        // Obtener datos de batches
+        $batch_options = $wpdb->get_results("
+            SELECT option_name, option_value 
+            FROM {$wpdb->options} 
+            WHERE option_name LIKE 'canwbe_batch_%'
+        ");
+
+        $data['batch_options_count'] = count($batch_options);
+
+        foreach ($batch_options as $option) {
+            $batch_data = maybe_unserialize($option->option_value);
+            if (is_array($batch_data)) {
+                $data['total_newsletters']++;
+                $data['total_emails_sent'] += (int) ($batch_data['sent_emails'] ?? 0);
+            }
         }
 
-        // Get WP Mail SMTP table name
-        $logs_table = \WPMailSMTP\Logs\Logs::get_table_name();
-
-        // Get total sent newsletter emails
-        $sent_query = $wpdb->prepare("
-            SELECT COUNT(*) 
-            FROM {$logs_table} 
-            WHERE status = %s 
-            AND (subject LIKE %s OR headers LIKE %s)
-        ", 'sent', '%newsletter%', '%newsletter%');
-
-        $data['total_sent'] = (int) $wpdb->get_var($sent_query);
-
-        // Get total opens if open tracking is enabled
-        if (self::is_wp_mail_smtp_open_tracking_enabled()) {
-            $opens_query = $wpdb->prepare("
-                SELECT COUNT(*) 
-                FROM {$logs_table} 
-                WHERE opened IS NOT NULL 
-                AND (subject LIKE %s OR headers LIKE %s)
-            ", '%newsletter%', '%newsletter%');
-
-            $data['total_opens'] = (int) $wpdb->get_var($opens_query);
+        // Obtener datos de WP Mail SMTP si está disponible
+        $wp_mail_table = self::get_wp_mail_smtp_table();
+        if ($wp_mail_table) {
+            $smtp_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wp_mail_table['table_name']}");
+            $data['smtp_logs_count'] = (int) $smtp_count;
         }
-
-        // Get count of newsletters sent
-        $newsletters_query = "
-            SELECT COUNT(DISTINCT post_id) 
-            FROM {$wpdb->postmeta} 
-            WHERE meta_key = '_newsletter_batch_id'
-        ";
-
-        $data['newsletters_sent'] = (int) $wpdb->get_var($newsletters_query);
 
         return $data;
     }
 
     /**
-     * Get recent newsletters with statistics
+     * Get newsletter campaigns from batch data with SMTP opens
      */
-    public static function get_recent_newsletters_with_stats() {
+    public static function get_newsletter_campaigns() {
         global $wpdb;
 
-        $newsletters = array();
+        $campaigns = array();
+        $wp_mail_table = self::get_wp_mail_smtp_table();
 
-        if (!self::is_wp_mail_smtp_active()) {
-            return $newsletters;
-        }
+        // Obtener todos los batches
+        $batch_options = $wpdb->get_results("
+            SELECT option_name, option_value 
+            FROM {$wpdb->options} 
+            WHERE option_name LIKE 'canwbe_batch_%'
+            ORDER BY option_id DESC
+            LIMIT 20
+        ");
 
-        // Get recent newsletters with batch IDs
-        $recent_newsletters = get_posts(array(
-            'post_type' => 'newsletter',
-            'post_status' => 'publish',
-            'numberposts' => 10,
-            'orderby' => 'date',
-            'order' => 'DESC',
-            'meta_query' => array(
-                array(
-                    'key' => '_newsletter_batch_id',
-                    'compare' => 'EXISTS'
-                )
-            )
-        ));
+        foreach ($batch_options as $option) {
+            $batch_data = maybe_unserialize($option->option_value);
 
-        $logs_table = \WPMailSMTP\Logs\Logs::get_table_name();
-
-        foreach ($recent_newsletters as $post) {
-            $batch_id = get_post_meta($post->ID, '_newsletter_batch_id', true);
-            $batch_data = get_option('canwbe_batch_' . $batch_id);
-
-            if (!$batch_data) continue;
-
-            // Get WP Mail SMTP stats for this newsletter
-            $subject_pattern = '%' . $wpdb->esc_like($post->post_title) . '%';
-
-            // Count sent emails
-            $sent_query = $wpdb->prepare("
-                SELECT COUNT(*) 
-                FROM {$logs_table} 
-                WHERE status = %s 
-                AND subject LIKE %s
-                AND date_sent >= %s
-            ", 'sent', $subject_pattern, $post->post_date);
-
-            $delivered = (int) $wpdb->get_var($sent_query);
-
-            // Count opens
-            $opens = 0;
-            if (self::is_wp_mail_smtp_open_tracking_enabled()) {
-                $opens_query = $wpdb->prepare("
-                    SELECT COUNT(*) 
-                    FROM {$logs_table} 
-                    WHERE opened IS NOT NULL 
-                    AND subject LIKE %s
-                    AND date_sent >= %s
-                ", $subject_pattern, $post->post_date);
-
-                $opens = (int) $wpdb->get_var($opens_query);
+            if (!is_array($batch_data) || !isset($batch_data['post_id'])) {
+                continue;
             }
 
-            $newsletters[] = array(
+            $post = get_post($batch_data['post_id']);
+            if (!$post) {
+                continue;
+            }
+
+            $batch_id = str_replace('canwbe_batch_', '', $option->option_name);
+
+            // Obtener aperturas de WP Mail SMTP si está disponible
+            $opens = 0;
+            if ($wp_mail_table && $batch_data['status'] === 'completed') {
+                try {
+                    // Buscar emails en los logs de SMTP que coincidan con el título del newsletter
+                    $subject_like = '%' . $wpdb->esc_like($post->post_title) . '%';
+
+                    // Verificar si la tabla tiene columna de aperturas
+                    $columns = $wp_mail_table['columns'];
+                    $has_opens = false;
+                    $opens_column = '';
+
+                    if (in_array('opened', $columns)) {
+                        $has_opens = true;
+                        $opens_column = 'opened';
+                    } elseif (in_array('date_opened', $columns)) {
+                        $has_opens = true;
+                        $opens_column = 'date_opened';
+                    } elseif (in_array('is_opened', $columns)) {
+                        $has_opens = true;
+                        $opens_column = 'is_opened';
+                    }
+
+                    if ($has_opens) {
+                        // Buscar aperturas por asunto del newsletter
+                        $opens_query = $wpdb->prepare("
+                            SELECT COUNT(*) 
+                            FROM {$wp_mail_table['table_name']} 
+                            WHERE subject LIKE %s 
+                            AND {$opens_column} IS NOT NULL 
+                            AND {$opens_column} != ''
+                            AND {$opens_column} != '0000-00-00 00:00:00'
+                        ", $subject_like);
+
+                        $opens = (int) $wpdb->get_var($opens_query);
+                    }
+                } catch (Exception $e) {
+                    error_log('CANWBE Analytics: Error getting opens for ' . $post->post_title . ' - ' . $e->getMessage());
+                }
+            }
+
+            $campaigns[] = array(
                 'post_id' => $post->ID,
                 'title' => $post->post_title,
-                'sent_date' => date_i18n(get_option('date_format'), strtotime($post->post_date)),
                 'batch_id' => $batch_id,
-                'total_recipients' => $batch_data['total_emails'] ?? 0,
-                'delivered' => $delivered,
-                'failed' => ($batch_data['failed_emails'] ?? 0),
+                'status' => $batch_data['status'] ?? 'unknown',
+                'total_emails' => (int) ($batch_data['total_emails'] ?? 0),
+                'sent_emails' => (int) ($batch_data['sent_emails'] ?? 0),
+                'failed_emails' => (int) ($batch_data['failed_emails'] ?? 0),
                 'opens' => $opens,
-                'status' => $batch_data['status'] ?? 'unknown'
+                'created_at' => $batch_data['created_at'] ?? 'Unknown'
             );
         }
 
-        return $newsletters;
-    }
-
-    /**
-     * Track email sent successfully
-     */
-    public static function track_email_sent($email, $user_id, $newsletter_id) {
-        // This hook can be used by the batch sender to track successful sends
-        // Additional tracking can be added here if needed
-        canwbe_log('Email sent for analytics tracking', array(
-            'email' => $email,
-            'user_id' => $user_id,
-            'newsletter_id' => $newsletter_id
-        ));
-    }
-
-    /**
-     * Setup WP Mail SMTP integration hooks
-     */
-    public static function setup_wp_mail_smtp_integration() {
-        // Hook into WP Mail SMTP events if available
-        if (has_action('wp_mail_smtp_mailcatcher_smtp_pre_send')) {
-            add_action('wp_mail_smtp_mailcatcher_smtp_pre_send', array(__CLASS__, 'wp_mail_smtp_pre_send'), 10, 2);
-        }
-    }
-
-    /**
-     * WP Mail SMTP pre-send hook
-     */
-    public static function wp_mail_smtp_pre_send($phpmailer, $wp_mail_smtp) {
-        // Add any newsletter-specific tracking here
-        if (strpos($phpmailer->Subject, 'newsletter') !== false) {
-            canwbe_log('Newsletter email being sent via WP Mail SMTP', array(
-                'subject' => $phpmailer->Subject,
-                'to' => $phpmailer->getToAddresses()
-            ));
-        }
+        return $campaigns;
     }
 
     /**
@@ -598,9 +551,6 @@ class CANWBE_Newsletter_Analytics {
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Permission denied');
         }
-
-        // Clear any cached data and force refresh
-        delete_transient('canwbe_analytics_data');
 
         wp_send_json_success(array(
             'message' => __('Analytics data refreshed successfully', 'create-a-newsletter-with-the-block-editor')

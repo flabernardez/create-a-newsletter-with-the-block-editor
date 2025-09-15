@@ -54,16 +54,7 @@ function canwbe_create_cpt_newsletter() {
             'custom-fields',
             'revisions'
         ),
-        'template'           => array(
-            array('core/heading', array(
-                'level' => 1,
-                'placeholder' => esc_html__('Newsletter Title', 'create-a-newsletter-with-the-block-editor')
-            )),
-            array('core/paragraph', array(
-                'placeholder' => esc_html__('Write your newsletter introduction here...', 'create-a-newsletter-with-the-block-editor')
-            )),
-        ),
-        'template_lock'      => false,
+        // Completely empty - no template at all
     );
 
     register_post_type('newsletter', $args);
