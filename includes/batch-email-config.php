@@ -33,6 +33,8 @@ class CANWBE_Batch_Config {
             'retry_delay' => get_option('canwbe_retry_delay', 300),
             'admin_notifications' => get_option('canwbe_admin_notifications', 'failures_only'),
             'wp_mail_smtp_logging' => get_option('canwbe_wp_mail_smtp_logging', 'yes'),
+            'web_view_enabled' => get_option('canwbe_web_view_enabled', 'yes'),
+            'web_view_text' => get_option('canwbe_web_view_text', __('View on the web with graphics and images', 'create-a-newsletter-with-the-block-editor')),
         );
     }
 
@@ -80,6 +82,19 @@ class CANWBE_Batch_Config {
 
         register_setting('canwbe_email_settings', 'canwbe_admin_notifications');
         register_setting('canwbe_email_settings', 'canwbe_wp_mail_smtp_logging');
+
+        // Web view settings
+        register_setting('canwbe_email_settings', 'canwbe_web_view_enabled', array(
+            'type' => 'string',
+            'default' => 'yes',
+            'sanitize_callback' => array(__CLASS__, 'sanitize_checkbox')
+        ));
+
+        register_setting('canwbe_email_settings', 'canwbe_web_view_text', array(
+            'type' => 'string',
+            'default' => __('View on the web with graphics and images', 'create-a-newsletter-with-the-block-editor'),
+            'sanitize_callback' => 'sanitize_text_field'
+        ));
     }
 
     /**
@@ -106,6 +121,13 @@ class CANWBE_Batch_Config {
     }
 
     /**
+     * Sanitize checkbox values
+     */
+    public static function sanitize_checkbox($value) {
+        return ($value === 'yes') ? 'yes' : 'no';
+    }
+
+    /**
      * Settings page
      */
     public static function settings_page() {
@@ -118,13 +140,24 @@ class CANWBE_Batch_Config {
             update_option('canwbe_admin_notifications', sanitize_text_field($_POST['canwbe_admin_notifications']));
             update_option('canwbe_wp_mail_smtp_logging', sanitize_text_field($_POST['canwbe_wp_mail_smtp_logging']));
 
+            // Web view settings
+            update_option('canwbe_web_view_enabled', self::sanitize_checkbox($_POST['canwbe_web_view_enabled']));
+            update_option('canwbe_web_view_text', sanitize_text_field($_POST['canwbe_web_view_text']));
+
             echo '<div class="notice notice-success"><p>' . __('Settings saved successfully!', 'create-a-newsletter-with-the-block-editor') . '</p></div>';
         }
 
         $config = self::get_config();
         ?>
         <div class="wrap">
-            <h1><?php esc_html_e('Email Settings', 'create-a-newsletter-with-the-block-editor'); ?></h1>
+            <h1>
+                <?php esc_html_e('Email Settings', 'create-a-newsletter-with-the-block-editor'); ?>
+                <a href="<?php echo admin_url('admin.php?page=canwbe-debug-batch'); ?>"
+                   class="page-title-action debug-button"
+                   title="<?php esc_attr_e('Open advanced debugging tools for batch email system', 'create-a-newsletter-with-the-block-editor'); ?>">
+                    🔧 <?php esc_html_e('Debug Tools', 'create-a-newsletter-with-the-block-editor'); ?>
+                </a>
+            </h1>
 
             <form method="post" action="">
                 <?php wp_nonce_field('canwbe_email_settings'); ?>
@@ -187,6 +220,43 @@ class CANWBE_Batch_Config {
                                 <span><?php esc_html_e('seconds', 'create-a-newsletter-with-the-block-editor'); ?></span>
                                 <p class="description">
                                     <?php esc_html_e('Time to wait before retrying failed emails (60-3600 seconds).', 'create-a-newsletter-with-the-block-editor'); ?>
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h2><?php esc_html_e('Web View Settings', 'create-a-newsletter-with-the-block-editor'); ?></h2>
+                    <p><?php esc_html_e('Configure the "View on Web" link that appears in newsletter emails.', 'create-a-newsletter-with-the-block-editor'); ?></p>
+
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row"><?php esc_html_e('Enable Web View Link', 'create-a-newsletter-with-the-block-editor'); ?></th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" name="canwbe_web_view_enabled" value="yes"
+                                        <?php checked($config['web_view_enabled'], 'yes'); ?> />
+                                    <?php esc_html_e('Show "View on Web" link in newsletter emails', 'create-a-newsletter-with-the-block-editor'); ?>
+                                </label>
+                                <p class="description">
+                                    <?php esc_html_e('When enabled, a link to view the newsletter on your website will be included in emails.', 'create-a-newsletter-with-the-block-editor'); ?>
+                                </p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row">
+                                <label for="canwbe_web_view_text"><?php esc_html_e('Web View Link Text', 'create-a-newsletter-with-the-block-editor'); ?></label>
+                            </th>
+                            <td>
+                                <input type="text"
+                                       id="canwbe_web_view_text"
+                                       name="canwbe_web_view_text"
+                                       value="<?php echo esc_attr($config['web_view_text']); ?>"
+                                       class="regular-text" />
+                                <p class="description">
+                                    <?php esc_html_e('Text for the web view link. Leave empty to use default text.', 'create-a-newsletter-with-the-block-editor'); ?>
                                 </p>
                             </td>
                         </tr>
@@ -291,6 +361,20 @@ class CANWBE_Batch_Config {
 
                 <?php submit_button(__('Save Settings', 'create-a-newsletter-with-the-block-editor')); ?>
             </form>
+
+            <!-- Debug Tools Info Card -->
+            <div class="card debug-info-card">
+                <h2>🔧 <?php esc_html_e('Need Help with Batch Issues?', 'create-a-newsletter-with-the-block-editor'); ?></h2>
+                <p><?php esc_html_e('If you\'re experiencing problems with batch email sending, use our advanced debugging tools to diagnose the issue.', 'create-a-newsletter-with-the-block-editor'); ?></p>
+                <p>
+                    <a href="<?php echo admin_url('admin.php?page=canwbe-debug-batch'); ?>" class="button button-secondary">
+                        🔍 <?php esc_html_e('Open Debug Tools', 'create-a-newsletter-with-the-block-editor'); ?>
+                    </a>
+                    <span class="description" style="margin-left: 10px;">
+                        <?php esc_html_e('Access system status, batch data inspection, and manual restart options.', 'create-a-newsletter-with-the-block-editor'); ?>
+                    </span>
+                </p>
+            </div>
         </div>
 
         <style>
@@ -301,6 +385,33 @@ class CANWBE_Batch_Config {
                 box-shadow: 0 1px 1px rgba(0,0,0,.04);
                 padding: 1em 2em;
                 margin: 20px 0;
+            }
+
+            .debug-info-card {
+                border-left-color: #dba617;
+                background-color: #fffbf0;
+            }
+
+            .debug-button {
+                background: #dba617 !important;
+                border-color: #c18a03 !important;
+                color: white !important;
+                text-decoration: none !important;
+                font-size: 13px !important;
+                padding: 4px 8px !important;
+                border-radius: 3px !important;
+                margin-left: 10px !important;
+                display: inline-block !important;
+            }
+
+            .debug-button:hover {
+                background: #c18a03 !important;
+                border-color: #a47b02 !important;
+                color: white !important;
+            }
+
+            .debug-button:focus {
+                box-shadow: 0 0 0 1px #fff, 0 0 0 3px #dba617 !important;
             }
         </style>
         <?php

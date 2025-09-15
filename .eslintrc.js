@@ -1,8 +1,8 @@
 module.exports = {
-    extends: ['@wordpress/eslint-config'],
     env: {
         browser: true,
         es6: true,
+        node: true,
     },
     parserOptions: {
         ecmaVersion: 2020,
@@ -12,12 +12,17 @@ module.exports = {
         },
     },
     rules: {
-        // Personaliza las reglas según tus preferencias
         'no-console': 'warn',
-        '@wordpress/no-unused-vars-before-return': 'error',
+        'no-unused-vars': 'warn',
+        'indent': ['error', 4],
+        'quotes': ['error', 'single'],
+        'semi': ['error', 'always'],
     },
     globals: {
         wp: 'readonly',
         canwbeRoles: 'readonly',
+        canwbeConfig: 'readonly',
+        jQuery: 'readonly',
+        ajaxurl: 'readonly',
     },
 };

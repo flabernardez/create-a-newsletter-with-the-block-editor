@@ -82,7 +82,7 @@ function canwbe_process_newsletter_sending($post) {
 }
 
 /**
- * Prepare email content for sending (SINGLE DECLARATION - FIXED)
+ * Prepare email content for sending
  */
 function canwbe_prepare_email_content($post) {
     $subject = sanitize_text_field($post->post_title);
@@ -97,9 +97,17 @@ function canwbe_prepare_email_content($post) {
     $intro_message = get_post_meta($post->ID, 'canwbe_intro_message', true);
     if (!empty($intro_message)) {
         $message .= wp_kses_post($intro_message) . '<br><br>';
-        $message .= '<a href="' . esc_url($newsletter_link) . '">' .
-            esc_html__('View on the web with graphics and images', 'create-a-newsletter-with-the-block-editor') .
-            '</a><br><br>';
+
+        // Add web view link if enabled
+        $web_view_enabled = get_option('canwbe_web_view_enabled', 'yes');
+        if ($web_view_enabled === 'yes') {
+            $web_view_text = get_option('canwbe_web_view_text', __('View on the web with graphics and images', 'create-a-newsletter-with-the-block-editor'));
+            $web_view_text = apply_filters('canwbe_web_view_text', $web_view_text);
+
+            if (!empty($web_view_text)) {
+                $message .= '<a href="' . esc_url($newsletter_link) . '">' . esc_html($web_view_text) . '</a><br><br>';
+            }
+        }
     }
 
     // Add main content

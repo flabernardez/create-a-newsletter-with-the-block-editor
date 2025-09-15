@@ -31,7 +31,7 @@ const NewsletterMetaFields = () => {
         return null;
     }
 
-    // Extract meta values with defaults - NOMBRES CORREGIDOS
+    // Extract meta values with defaults
     const {
         canwbe_intro_message: introMessage = '',
         canwbe_unsubscribe_message: unsubscribeMessage = '',
@@ -46,7 +46,7 @@ const NewsletterMetaFields = () => {
         });
     };
 
-    // Get roles from localized script - NOMBRE CORREGIDO
+    // Get roles from localized script
     const availableRoles = window.canwbeRoles || [];
     const roleSuggestions = availableRoles.map(role => role.label);
 
@@ -87,7 +87,7 @@ const NewsletterMetaFields = () => {
 
                     updateMeta('canwbe_recipient_roles', selectedValues);
                 }}
-                help={__('Separar con comas o la tecla Intro.', 'create-a-newsletter-with-the-block-editor')}
+                help={__('Separate with commas or Enter key.', 'create-a-newsletter-with-the-block-editor')}
             />
         </PluginDocumentSettingPanel>
     );
