@@ -21,31 +21,72 @@ class CANWBE_Analytics_Renderer_Helpers {
     public static function render_pro_styles() {
         ?>
         <style>
-            .pro-badge {
-                background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
-                color: white;
-                padding: 4px 8px;
-                border-radius: 12px;
-                font-size: 11px;
-                font-weight: bold;
-                margin-left: 10px;
+            /* Force full width for analytics pages */
+            .wrap {
+                max-width: none !important;
+                width: 100% !important;
+            }
+
+            .wrap > * {
+                max-width: none !important;
+            }
+
+            /* Override any WordPress admin constraints */
+            .card,
+            .notice,
+            .canwbe-analytics-overview,
+            .table-full-width {
+                max-width: none !important;
+                min-width: auto !important;
+            }
+            <style>
+             .pro-badge {
+                 background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+                 color: white;
+                 padding: 4px 8px;
+                 border-radius: 12px;
+                 font-size: 11px;
+                 font-weight: bold;
+                 margin-left: 10px;
+             }
+
+            /* Pro Status Notice Styling */
+            .notice.notice-success {
+                border-left-color: #00a32a;
+                background-color: #f0fff4;
+                padding: 16px;
+                margin: 20px 0;
+            }
+
+            .notice.notice-success p {
+                margin: 8px 0;
+                line-height: 1.5;
+            }
+
+            .notice.notice-success strong {
+                color: #00a32a;
             }
 
             .canwbe-analytics-overview.pro {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                grid-template-columns: repeat(4, 1fr);
                 gap: 20px;
                 margin: 20px 0;
+                width: 100%;
             }
 
             .canwbe-metric-card.pro-card {
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 color: white;
                 border-radius: 12px;
-                padding: 24px;
+                padding: 24px 16px;
                 text-align: center;
                 box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                min-height: 140px;
             }
 
             .canwbe-metric-card.pro-card:hover {
@@ -70,32 +111,45 @@ class CANWBE_Analytics_Renderer_Helpers {
                 opacity: 0.8;
             }
 
-            .card {
-                background: white;
-                border: 1px solid #c3c4c7;
-                border-left: 4px solid #72aee6;
-                box-shadow: 0 2px 10px rgba(0,0,0,.08);
-                padding: 2em;
-                margin: 20px 0;
-                border-radius: 6px;
+            /* Override WordPress admin CSS with very specific selectors */
+            body.wp-admin .wrap .card,
+            .wp-admin .wrap .card,
+            #wpbody-content .wrap .card,
+            #wpcontent .wrap .card {
+                max-width: none !important;
+                min-width: auto !important;
+                width: 100% !important;
+                background: white !important;
+                border: 1px solid #c3c4c7 !important;
+                border-left: 4px solid #72aee6 !important;
+                box-shadow: 0 2px 10px rgba(0,0,0,.08) !important;
+                padding: 2em !important;
+                margin: 20px 0 !important;
+                border-radius: 6px !important;
+                box-sizing: border-box !important;
+                position: relative !important;
             }
 
             .table-full-width {
                 margin: 0 -2em;
                 background: white;
+                width: calc(100% + 4em);
             }
 
             .pro-table {
                 margin: 0;
                 width: 100%;
                 border-collapse: collapse;
+                table-layout: fixed;
+                min-width: 100%;
             }
 
             .pro-table th,
             .pro-table td {
-                padding: 16px 20px;
+                padding: 16px 12px;
                 border-bottom: 1px solid #e1e1e1;
                 vertical-align: top;
+                word-wrap: break-word;
             }
 
             .pro-table th {
@@ -511,7 +565,17 @@ class CANWBE_Analytics_Renderer_Helpers {
             }
 
             /* Responsive Design */
+            @media (max-width: 1200px) {
+                .canwbe-analytics-overview.pro {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+
             @media (max-width: 768px) {
+                .canwbe-analytics-overview.pro {
+                    grid-template-columns: 1fr;
+                }
+
                 .upgrade-content {
                     flex-direction: column;
                     gap: 15px;
@@ -549,6 +613,7 @@ class CANWBE_Analytics_Renderer_Helpers {
 
                 .table-full-width {
                     margin: 0 -1em;
+                    width: calc(100% + 2em);
                 }
             }
 

@@ -1,0 +1,179 @@
+
+.canwbe-subscription-form-wrapper {
+    margin: 1.5em 0;
+}
+
+.canwbe-subscription-form-container {
+    background: #f9f9f9;
+    padding: 2em;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.canwbe-subscription-form-title {
+    margin: 0 0 1em 0;
+    font-size: 1.5em;
+    font-weight: 600;
+    color: #333;
+}
+
+.canwbe-subscription-form-description {
+    margin: 0 0 1.5em 0;
+    color: #666;
+    line-height: 1.5;
+}
+
+.canwbe-form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+}
+
+.canwbe-form-field {
+    margin: 0;
+}
+
+.canwbe-form-input {
+    width: 100%;
+    padding: 0.75em;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+    box-sizing: border-box;
+}
+
+.canwbe-form-input:focus {
+    outline: none;
+    border-color: #0073aa;
+    box-shadow: 0 0 0 2px rgba(0, 115, 170, 0.1);
+}
+
+.canwbe-form-button {
+    width: 100%;
+    padding: 0.75em 1.5em;
+    background: #0073aa;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.canwbe-form-button:hover {
+    background: #005a87;
+}
+
+.canwbe-form-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.canwbe-privacy-field {
+    margin: 1em 0;
+}
+
+.canwbe-privacy-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5em;
+    font-size: 0.9em;
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+.canwbe-privacy-checkbox {
+    margin: 0;
+    margin-top: 0.2em;
+    flex-shrink: 0;
+}
+
+.canwbe-privacy-text a {
+    color: #0073aa;
+    text-decoration: underline;
+}
+
+.canwbe-privacy-text a:hover {
+    text-decoration: none;
+}
+
+.canwbe-gdpr-field {
+    margin: 1em 0;
+}
+
+.canwbe-gdpr-text {
+    font-size: 0.8em;
+    color: #666;
+    line-height: 1.4;
+    margin: 0;
+    padding: 0.75em;
+    background: #f5f5f5;
+    border-radius: 4px;
+    border-left: 3px solid #0073aa;
+}
+
+.canwbe-form-messages {
+    margin-top: 1em;
+}
+
+.canwbe-success-message {
+    padding: 0.75em;
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+    border-radius: 4px;
+    margin-bottom: 1em;
+}
+
+.canwbe-error-message {
+    padding: 0.75em;
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    margin-bottom: 1em;
+}
+
+/* Responsive design */
+@media (min-width: 768px) {
+    .canwbe-form-fields {
+        flex-direction: row;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+    
+    .canwbe-form-field:not(.canwbe-privacy-field):not(.canwbe-gdpr-field):not(:last-child) {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .canwbe-form-field:last-child {
+        flex-shrink: 0;
+        margin-left: 1em;
+    }
+    
+    .canwbe-privacy-field,
+    .canwbe-gdpr-field {
+        flex-basis: 100%;
+        order: 10;
+    }
+    
+    .canwbe-form-button {
+        width: auto;
+        white-space: nowrap;
+    }
+}
+
+/* Editor styles */
+.editor-styles-wrapper .canwbe-subscription-form-container {
+    background: #f0f0f0;
+    border: 2px dashed #ccc;
+}
+
+.editor-styles-wrapper .canwbe-subscription-form-title {
+    margin-top: 0;
+}
+        

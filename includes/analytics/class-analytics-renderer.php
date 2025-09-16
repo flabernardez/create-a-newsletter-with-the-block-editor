@@ -46,7 +46,6 @@ class CANWBE_Analytics_Renderer {
             <?php self::render_pro_insights($overall_stats, $campaigns); ?>
         </div>
         <?php
-        self::render_pro_styles();
     }
 
     /**
@@ -68,7 +67,6 @@ class CANWBE_Analytics_Renderer {
             <?php self::render_basic_campaigns_table($campaigns); ?>
         </div>
         <?php
-        self::render_basic_styles();
     }
 
     /**

@@ -28,6 +28,9 @@ class CANWBE_Analytics_Manager {
         // Add admin menu
         add_action('admin_menu', array(__CLASS__, 'add_analytics_menu'), 20);
 
+        // Enqueue admin styles
+        add_action('admin_enqueue_scripts', array(__CLASS__, 'enqueue_admin_styles'));
+
         // AJAX handlers
         add_action('wp_ajax_canwbe_refresh_analytics', array(__CLASS__, 'ajax_refresh_analytics'));
         add_action('wp_ajax_canwbe_get_campaign_details', array(__CLASS__, 'ajax_get_campaign_details'));
@@ -47,6 +50,7 @@ class CANWBE_Analytics_Manager {
             'class-smtp-integration.php',
             'class-basic-analytics.php',
             'class-analytics-renderer.php',
+            'class-analytics-renderer-helpers.php',
             'analytics-helpers.php'
         );
 
@@ -84,6 +88,25 @@ class CANWBE_Analytics_Manager {
     public static function has_smtp_pro_integration() {
         return class_exists('CANWBE_SMTP_Integration') &&
             CANWBE_SMTP_Integration::is_available();
+    }
+
+    /**
+     * Enqueue admin styles for analytics pages
+     */
+    public static function enqueue_admin_styles($hook) {
+        // Only enqueue on analytics pages
+        if (strpos($hook, 'canwbe-analytics') === false &&
+            strpos($hook, 'newsletter') === false) {
+            return;
+        }
+
+        // Enqueue CSS file
+        wp_enqueue_style(
+            'canwbe-analytics-admin',
+            CANWBE_PLUGIN_URL . 'assets/css/analytics-admin.css',
+            array(),
+            CANWBE_VERSION
+        );
     }
 
     /**
@@ -302,10 +325,10 @@ class CANWBE_Analytics_Manager {
 
             foreach ($campaigns as $campaign) {
                 fputcsv($output, array(
-                    $campaign['title'],
-                    $campaign['date'],
-                    $campaign['emails_sent'],
-                    $campaign['delivered'],
+                    $campaign['title'] ?? '',
+                    $campaign['date'] ?? '',
+                    $campaign['emails_sent'] ?? 0,
+                    $campaign['delivered'] ?? 0,
                     $campaign['opens'] ?? 0,
                     $campaign['unique_opens'] ?? 0,
                     $campaign['open_rate'] ?? 0,
@@ -332,17 +355,18 @@ class CANWBE_Analytics_Manager {
 
             foreach ($campaigns as $campaign) {
                 $delivery_rate = 0;
-                if ($campaign['total_emails'] > 0) {
-                    $delivery_rate = round(($campaign['sent_emails'] / $campaign['total_emails']) * 100, 2);
+                if (isset($campaign['total_emails']) && $campaign['total_emails'] > 0) {
+                    $sent_emails = isset($campaign['sent_emails']) ? $campaign['sent_emails'] : 0;
+                    $delivery_rate = round(($sent_emails / $campaign['total_emails']) * 100, 2);
                 }
 
                 fputcsv($output, array(
-                    $campaign['title'],
-                    $campaign['created_at'],
-                    $campaign['total_emails'],
-                    $campaign['sent_emails'],
-                    $campaign['failed_emails'],
-                    ucfirst($campaign['status']),
+                    $campaign['title'] ?? '',
+                    $campaign['created_at'] ?? '',
+                    $campaign['total_emails'] ?? 0,
+                    $campaign['sent_emails'] ?? 0,
+                    $campaign['failed_emails'] ?? 0,
+                    isset($campaign['status']) ? ucfirst($campaign['status']) : 'Unknown',
                     $delivery_rate
                 ));
             }
