@@ -29,13 +29,13 @@ require_once CANWBE_PLUGIN_PATH . 'includes/email-sender.php';
 require_once CANWBE_PLUGIN_PATH . 'includes/pages-manager.php';
 require_once CANWBE_PLUGIN_PATH . 'includes/subscriber-management.php';
 require_once CANWBE_PLUGIN_PATH . 'includes/email-settings.php';
+require_once CANWBE_PLUGIN_PATH . 'includes/analytics/class-analytics-manager.php';
 
 // Include advanced features (optional but recommended)
 $advanced_files = array(
     'includes/batch-email-sender.php',
     'includes/batch-email-config.php',
     'includes/debug-batch.php',
-    'includes/newsletter-analytics.php',
     'includes/subscription-form-block.php'
 );
 
