@@ -406,6 +406,21 @@ class CANWBE_Analytics_Manager {
 
         return $table_exists;
     }
+
+    /**
+     * Wrapper: get campaign stats from WP Mail SMTP logs.
+     *
+     * @param string $subject
+     * @return array|WP_Error
+     */
+    public function canwbe_get_wpmailsmtp_campaign_stats( $subject ) {
+        // Use the procedural helper we added in class-smtp-integration.php
+        if ( ! function_exists( 'canwbe_smtp_get_campaign_stats' ) ) {
+            return new WP_Error( 'helper_missing', 'Integración SMTP no disponible.' );
+        }
+
+        return canwbe_smtp_get_campaign_stats( $subject );
+    }
 }
 
 // Initialize the analytics system

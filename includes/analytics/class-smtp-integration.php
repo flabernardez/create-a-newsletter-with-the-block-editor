@@ -1,13 +1,4 @@
 <?php
-/**
- * WP Mail SMTP Pro Integration
- *
- * Integrates with WP Mail SMTP Pro to get detailed email analytics
- * including opens, clicks, bounces, and delivery status
- *
- * @package Create_A_Newsletter_With_The_Block_Editor
- * @since 1.4.1
- */
 
 if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly
@@ -598,3 +589,189 @@ class CANWBE_SMTP_Integration {
 if (CANWBE_SMTP_Integration::is_available()) {
     CANWBE_SMTP_Integration::init();
 }
+
+/**
+ * Detect WP Mail SMTP logs table name.
+ *
+ * @return string|false Full table name or false if not found.
+ */
+function canwbe_smtp_detect_wpmailsmtp_table() {
+    global $wpdb;
+
+    $candidates = array(
+        $wpdb->prefix . 'wpmailsmtp_emails',
+        $wpdb->prefix . 'wpmailsmtp_logs',
+        $wpdb->prefix . 'wp_mail_smtp_emails',
+        $wpdb->prefix . 'mail_smtp_emails',
+        $wpdb->prefix . 'mail_smtp_logs',
+        $wpdb->prefix . 'wp_mail_smtp_logs',
+        $wpdb->prefix . 'wpmail_smtp_emails',
+    );
+
+    foreach ( $candidates as $table ) {
+        $found = $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) );
+        if ( $found === $table ) {
+            return $table;
+        }
+    }
+
+    // Fallback: quick scan of all tables for common substrings.
+    $all = $wpdb->get_col( "SHOW TABLES" );
+    if ( $all ) {
+        foreach ( $all as $tname ) {
+            if ( false !== stripos( $tname, 'wpmailsmtp' ) || false !== stripos( $tname, 'mail_smtp' ) || false !== stripos( $tname, 'wp_mail_smtp' ) ) {
+                return $tname;
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Check whether a column exists in a table.
+ *
+ * @param string $table
+ * @param string $column
+ * @return bool
+ */
+function canwbe_smtp_table_has_column( $table, $column ) {
+    global $wpdb;
+
+    // table name comes from internal detection, nevertheless validate that it looks like a table name
+    if ( ! is_string( $table ) || strpos( $table, $wpdb->prefix ) !== 0 ) {
+        return false;
+    }
+
+    $col = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", $column ) );
+    return (bool) $col;
+}
+
+/**
+ * Get campaign stats by subject from WP Mail SMTP logs.
+ *
+ * Returns array: subject, table, sent, failed, opens, clicks, open_rate, click_rate
+ *
+ * @param string $subject
+ * @return array|WP_Error
+ */
+function canwbe_smtp_get_campaign_stats( $subject ) {
+    global $wpdb;
+
+    $subject = sanitize_text_field( $subject );
+    if ( empty( $subject ) ) {
+        return new WP_Error( 'empty_subject', 'Asunto vacío.' );
+    }
+
+    $table = canwbe_smtp_detect_wpmailsmtp_table();
+    if ( ! $table ) {
+        return new WP_Error( 'no_table', 'No se ha encontrado la tabla de WP Mail SMTP en la base de datos.' );
+    }
+
+    // TOTAL SENT (exact subject match)
+    $sent = (int) $wpdb->get_var(
+        $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE subject = %s", $subject )
+    );
+
+    // FAILED (if status column present)
+    $failed = 0;
+    if ( canwbe_smtp_table_has_column( $table, 'status' ) ) {
+        $failed = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table} WHERE subject = %s AND ( status IS NULL OR status != 'sent' )",
+                $subject
+            )
+        );
+    }
+
+    // OPENS - try several possible columns
+    $opens = 0;
+    if ( canwbe_smtp_table_has_column( $table, 'opened_at' ) ) {
+        $opens = (int) $wpdb->get_var(
+            $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE subject = %s AND opened_at IS NOT NULL AND opened_at != ''", $subject )
+        );
+    } elseif ( canwbe_smtp_table_has_column( $table, 'opened' ) ) {
+        $opens = (int) $wpdb->get_var(
+            $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE subject = %s AND (opened = 1 OR opened = '1' OR opened = 'Yes' OR opened = 'Sí' OR opened = 'Si')", $subject )
+        );
+    } elseif ( canwbe_smtp_table_has_column( $table, 'headers' ) ) {
+        // best-effort: headers may contain tracking markers
+        $opens = (int) $wpdb->get_var(
+            $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE subject = %s AND headers LIKE %s", $subject, '%opened%' )
+        );
+    }
+
+    // CLICKS - similar approach
+    $clicks = 0;
+    if ( canwbe_smtp_table_has_column( $table, 'clicked_at' ) ) {
+        $clicks = (int) $wpdb->get_var(
+            $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE subject = %s AND clicked_at IS NOT NULL AND clicked_at != ''", $subject )
+        );
+    } elseif ( canwbe_smtp_table_has_column( $table, 'clicked' ) ) {
+        $clicks = (int) $wpdb->get_var(
+            $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE subject = %s AND (clicked = 1 OR clicked = '1' OR clicked = 'Yes' OR clicked = 'Sí' OR clicked = 'Si')", $subject )
+        );
+    }
+
+    $open_rate  = $sent > 0 ? round( ( $opens / $sent ) * 100, 2 ) : 0;
+    $click_rate = $sent > 0 ? round( ( $clicks / $sent ) * 100, 2 ) : 0;
+
+    return array(
+        'subject'    => $subject,
+        'table'      => $table,
+        'sent'       => $sent,
+        'failed'     => $failed,
+        'opens'      => $opens,
+        'clicks'     => $clicks,
+        'open_rate'  => $open_rate,
+        'click_rate' => $click_rate,
+    );
+}
+
+/**
+ * AJAX handler to return campaign stats (JSON).
+ * Requires manage_options capability.
+ */
+function canwbe_ajax_get_campaign_stats() {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'message' => 'No permission' ), 403 );
+    }
+
+    check_ajax_referer( 'canwbe_analytics_nonce', 'nonce' );
+
+    $subject = isset( $_POST['subject'] ) ? sanitize_text_field( wp_unslash( $_POST['subject'] ) ) : '';
+    if ( empty( $subject ) ) {
+        wp_send_json_error( array( 'message' => 'Asunto vacío' ), 400 );
+    }
+
+    $stats = canwbe_smtp_get_campaign_stats( $subject );
+    if ( is_wp_error( $stats ) ) {
+        wp_send_json_error( array( 'message' => $stats->get_error_message() ), 500 );
+    }
+
+    wp_send_json_success( $stats );
+}
+add_action( 'wp_ajax_canwbe_get_campaign_stats', 'canwbe_ajax_get_campaign_stats' );
+
+/**
+ * Enqueue admin JS for the analytics page (only on analytics/newsletter admin pages).
+ */
+function canwbe_smtp_enqueue_admin_assets( $hook ) {
+    // limit load: only if page query looks like your analytics page (adjust if needed)
+    if ( ! isset( $_GET['page'] ) ) {
+        return;
+    }
+
+    $page = sanitize_text_field( wp_unslash( $_GET['page'] ) );
+    if ( false === stripos( $page, 'analytics' ) && false === stripos( $page, 'newsletter' ) && false === stripos( $page, 'canwbe' ) ) {
+        return;
+    }
+
+    // assets path: adjust relative path if necessary
+    wp_enqueue_script( 'canwbe-analytics-admin', plugin_dir_url( __FILE__ ) . '../../assets/js/canwbe-analytics-admin.js', array( 'jquery' ), '1.0', true );
+    wp_localize_script( 'canwbe-analytics-admin', 'canwbeAnalytics', array(
+        'ajax_url' => admin_url( 'admin-ajax.php' ),
+        'nonce'    => wp_create_nonce( 'canwbe_analytics_nonce' ),
+    ) );
+}
+add_action( 'admin_enqueue_scripts', 'canwbe_smtp_enqueue_admin_assets' );
