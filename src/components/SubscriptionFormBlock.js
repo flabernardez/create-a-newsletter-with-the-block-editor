@@ -3,25 +3,25 @@ import {
     TextControl,
     TextareaControl,
     ToggleControl,
-    SelectControl,
     PanelBody,
-    RangeControl
+    RangeControl,
+    __experimentalUnitControl as UnitControl
 } from '@wordpress/components';
 import {
     InspectorControls,
     BlockControls,
     AlignmentToolbar,
+    useBlockProps,
+    __experimentalPanelColorGradientSettings as PanelColorGradientSettings,
+    FontSizePicker,
     __experimentalFontFamilyControl as FontFamilyControl,
-    __experimentalFontSizePicker as FontSizePicker,
-    __experimentalColorGradientControl as ColorGradientControl,
-    __experimentalUseMultipleOriginColorsAndGradients as useMultipleOriginColorsAndGradients,
-    withColors,
-    PanelColorSettings
+    __experimentalFontAppearanceControl as FontAppearanceControl,
+    useSetting
 } from '@wordpress/block-editor';
 import { __ } from '@wordpress/i18n';
-import { compose } from '@wordpress/compose';
 
 registerBlockType('canwbe/subscription-form', {
+    apiVersion: 2,
     title: __('Newsletter Subscription Form', 'create-a-newsletter-with-the-block-editor'),
     description: __('A GDPR-compliant form for users to subscribe to your newsletter.', 'create-a-newsletter-with-the-block-editor'),
     category: 'widgets',
@@ -34,6 +34,13 @@ registerBlockType('canwbe/subscription-form', {
         __('gdpr', 'create-a-newsletter-with-the-block-editor'),
         __('privacy', 'create-a-newsletter-with-the-block-editor')
     ],
+    supports: {
+        align: ['wide', 'full'],
+        spacing: {
+            padding: true,
+            margin: true
+        }
+    },
     attributes: {
         // Textos del formulario
         title: {
@@ -81,170 +88,282 @@ registerBlockType('canwbe/subscription-form', {
 
         // Tipografía - Título
         titleFontSize: {
-            type: 'string',
-            default: ''
+            type: 'string'
         },
         titleFontFamily: {
-            type: 'string',
-            default: ''
+            type: 'string'
+        },
+        titleFontStyle: {
+            type: 'string'
         },
         titleFontWeight: {
-            type: 'string',
-            default: '600'
+            type: 'string'
         },
 
         // Tipografía - Descripción
         descriptionFontSize: {
-            type: 'string',
-            default: ''
+            type: 'string'
         },
         descriptionFontFamily: {
-            type: 'string',
-            default: ''
+            type: 'string'
+        },
+        descriptionFontStyle: {
+            type: 'string'
+        },
+        descriptionFontWeight: {
+            type: 'string'
+        },
+
+        // Tipografía - Inputs
+        inputFontSize: {
+            type: 'string'
+        },
+        inputFontFamily: {
+            type: 'string'
         },
 
         // Tipografía - Botón
         buttonFontSize: {
-            type: 'string',
-            default: ''
+            type: 'string'
         },
         buttonFontFamily: {
-            type: 'string',
-            default: ''
+            type: 'string'
+        },
+        buttonFontStyle: {
+            type: 'string'
         },
         buttonFontWeight: {
-            type: 'string',
-            default: '600'
+            type: 'string'
         },
 
-        // Colores
+        // Colores - Título
         titleColor: {
-            type: 'string',
-            default: ''
+            type: 'string'
         },
+        titleGradient: {
+            type: 'string'
+        },
+
+        // Colores - Descripción
         descriptionColor: {
-            type: 'string',
-            default: ''
+            type: 'string'
         },
-        backgroundColor: {
-            type: 'string',
-            default: ''
+        descriptionGradient: {
+            type: 'string'
         },
-        buttonBackgroundColor: {
-            type: 'string',
-            default: ''
+
+        // Colores - Container
+        containerBackgroundColor: {
+            type: 'string'
         },
-        buttonTextColor: {
-            type: 'string',
-            default: ''
+        containerGradient: {
+            type: 'string'
+        },
+
+        // Colores - Inputs
+        inputTextColor: {
+            type: 'string'
+        },
+        inputBackgroundColor: {
+            type: 'string'
         },
         inputBorderColor: {
-            type: 'string',
-            default: ''
+            type: 'string'
+        },
+        inputPlaceholderColor: {
+            type: 'string'
         },
 
-        // Espaciado
+        // Colores - Botón
+        buttonTextColor: {
+            type: 'string'
+        },
+        buttonBackgroundColor: {
+            type: 'string'
+        },
+        buttonGradient: {
+            type: 'string'
+        },
+        buttonBorderColor: {
+            type: 'string'
+        },
+
+        // Colores - Hover states
+        buttonHoverTextColor: {
+            type: 'string'
+        },
+        buttonHoverBackgroundColor: {
+            type: 'string'
+        },
+        inputFocusBorderColor: {
+            type: 'string'
+        },
+
+        // Colores - Privacy/GDPR
+        privacyTextColor: {
+            type: 'string'
+        },
+        gdprTextColor: {
+            type: 'string'
+        },
+        gdprBackgroundColor: {
+            type: 'string'
+        },
+
+        // Espaciado y bordes
         containerPadding: {
-            type: 'number',
-            default: 32
+            type: 'string',
+            default: '2em'
         },
         borderRadius: {
-            type: 'number',
-            default: 8
+            type: 'string',
+            default: '8px'
         },
         inputBorderRadius: {
-            type: 'number',
-            default: 4
+            type: 'string',
+            default: '4px'
         },
         buttonBorderRadius: {
-            type: 'number',
-            default: 4
+            type: 'string',
+            default: '4px'
+        },
+        inputBorderWidth: {
+            type: 'string',
+            default: '1px'
+        },
+        buttonBorderWidth: {
+            type: 'string',
+            default: '0px'
         }
     },
 
-    edit: compose([
-        withColors('titleColor', 'descriptionColor', 'backgroundColor', 'buttonBackgroundColor', 'buttonTextColor')
-    ])(function(props) {
-        const {
-            attributes,
-            setAttributes,
-            titleColor,
-            setTitleColor,
-            descriptionColor,
-            setDescriptionColor,
-            backgroundColor,
-            setBackgroundColor,
-            buttonBackgroundColor,
-            setButtonBackgroundColor,
-            buttonTextColor,
-            setButtonTextColor
-        } = props;
+    edit: function(props) {
+        const { attributes, setAttributes } = props;
+        const blockProps = useBlockProps();
+
+        // Obtener configuraciones del tema
+        const fontSizes = useSetting('typography.fontSizes') || [];
+        const fontFamilies = useSetting('typography.fontFamilies') || [];
+        const colors = useSetting('color.palette') || [];
+        const gradients = useSetting('color.gradients') || [];
 
         const {
             title,
             description,
             buttonText,
-            successMessage,
             placeholderEmail,
             placeholderName,
             showNameField,
             alignment,
             privacyText,
             gdprText,
+
+            // Typography
             titleFontSize,
             titleFontFamily,
+            titleFontStyle,
             titleFontWeight,
             descriptionFontSize,
             descriptionFontFamily,
+            descriptionFontStyle,
+            descriptionFontWeight,
+            inputFontSize,
+            inputFontFamily,
             buttonFontSize,
             buttonFontFamily,
+            buttonFontStyle,
             buttonFontWeight,
+
+            // Colors
+            titleColor,
+            titleGradient,
+            descriptionColor,
+            descriptionGradient,
+            containerBackgroundColor,
+            containerGradient,
+            inputTextColor,
+            inputBackgroundColor,
             inputBorderColor,
+            inputPlaceholderColor,
+            buttonTextColor,
+            buttonBackgroundColor,
+            buttonGradient,
+            buttonBorderColor,
+            buttonHoverTextColor,
+            buttonHoverBackgroundColor,
+            inputFocusBorderColor,
+            privacyTextColor,
+            gdprTextColor,
+            gdprBackgroundColor,
+
+            // Spacing
             containerPadding,
             borderRadius,
             inputBorderRadius,
-            buttonBorderRadius
+            buttonBorderRadius,
+            inputBorderWidth,
+            buttonBorderWidth
         } = attributes;
 
-        const colorSettings = useMultipleOriginColorsAndGradients();
-
-        // Estilos dinámicos para el contenedor
+        // Construir estilos dinámicos
         const containerStyle = {
             textAlign: alignment,
-            backgroundColor: backgroundColor?.color,
-            padding: `${containerPadding}px`,
-            borderRadius: `${borderRadius}px`
+            background: containerGradient || containerBackgroundColor || '#f9f9f9',
+            padding: containerPadding,
+            borderRadius: borderRadius
         };
 
-        // Estilos dinámicos para el título
         const titleStyle = {
-            color: titleColor?.color,
+            color: titleColor,
+            background: titleGradient,
+            WebkitBackgroundClip: titleGradient ? 'text' : undefined,
+            WebkitTextFillColor: titleGradient ? 'transparent' : undefined,
             fontSize: titleFontSize,
             fontFamily: titleFontFamily,
+            fontStyle: titleFontStyle,
             fontWeight: titleFontWeight
         };
 
-        // Estilos dinámicos para la descripción
         const descriptionStyle = {
-            color: descriptionColor?.color,
+            color: descriptionColor,
+            background: descriptionGradient,
+            WebkitBackgroundClip: descriptionGradient ? 'text' : undefined,
+            WebkitTextFillColor: descriptionGradient ? 'transparent' : undefined,
             fontSize: descriptionFontSize,
-            fontFamily: descriptionFontFamily
+            fontFamily: descriptionFontFamily,
+            fontStyle: descriptionFontStyle,
+            fontWeight: descriptionFontWeight
         };
 
-        // Estilos dinámicos para inputs
         const inputStyle = {
+            color: inputTextColor,
+            backgroundColor: inputBackgroundColor,
             borderColor: inputBorderColor,
-            borderRadius: `${inputBorderRadius}px`
+            borderWidth: inputBorderWidth,
+            borderRadius: inputBorderRadius,
+            fontSize: inputFontSize,
+            fontFamily: inputFontFamily
         };
 
-        // Estilos dinámicos para el botón
         const buttonStyle = {
-            backgroundColor: buttonBackgroundColor?.color,
-            color: buttonTextColor?.color,
+            color: buttonTextColor,
+            background: buttonGradient || buttonBackgroundColor || '#0073aa',
+            borderColor: buttonBorderColor,
+            borderWidth: buttonBorderWidth,
+            borderRadius: buttonBorderRadius,
             fontSize: buttonFontSize,
             fontFamily: buttonFontFamily,
-            fontWeight: buttonFontWeight,
-            borderRadius: `${buttonBorderRadius}px`
+            fontStyle: buttonFontStyle,
+            fontWeight: buttonFontWeight
+        };
+
+        const privacyStyle = {
+            color: privacyTextColor
+        };
+
+        const gdprStyle = {
+            color: gdprTextColor,
+            backgroundColor: gdprBackgroundColor
         };
 
         return (
@@ -257,6 +376,7 @@ registerBlockType('canwbe/subscription-form', {
                 </BlockControls>
 
                 <InspectorControls>
+                    {/* Form Settings */}
                     <PanelBody
                         title={__('Form Settings', 'create-a-newsletter-with-the-block-editor')}
                         initialOpen={true}
@@ -265,6 +385,7 @@ registerBlockType('canwbe/subscription-form', {
                             label={__('Form Title', 'create-a-newsletter-with-the-block-editor')}
                             value={title}
                             onChange={(value) => setAttributes({ title: value })}
+                            __nextHasNoMarginBottom
                         />
 
                         <TextareaControl
@@ -272,139 +393,397 @@ registerBlockType('canwbe/subscription-form', {
                             value={description}
                             onChange={(value) => setAttributes({ description: value })}
                             help={__('Brief description about your newsletter', 'create-a-newsletter-with-the-block-editor')}
+                            __nextHasNoMarginBottom
                         />
 
                         <ToggleControl
                             label={__('Show Name Field', 'create-a-newsletter-with-the-block-editor')}
                             checked={showNameField}
                             onChange={(value) => setAttributes({ showNameField: value })}
-                            help={__('Allow users to enter their name along with email', 'create-a-newsletter-with-the-block-editor')}
+                            __nextHasNoMarginBottom
                         />
                     </PanelBody>
 
+                    {/* Typography - Title */}
                     <PanelBody
                         title={__('Typography - Title', 'create-a-newsletter-with-the-block-editor')}
                         initialOpen={false}
                     >
                         <FontSizePicker
+                            fontSizes={fontSizes}
                             value={titleFontSize}
                             onChange={(value) => setAttributes({ titleFontSize: value })}
+                            withReset
+                            __nextHasNoMarginBottom
                         />
 
-                        <SelectControl
-                            label={__('Font Weight', 'create-a-newsletter-with-the-block-editor')}
-                            value={titleFontWeight}
-                            options={[
-                                { label: __('Normal', 'create-a-newsletter-with-the-block-editor'), value: '400' },
-                                { label: __('Medium', 'create-a-newsletter-with-the-block-editor'), value: '500' },
-                                { label: __('Semi Bold', 'create-a-newsletter-with-the-block-editor'), value: '600' },
-                                { label: __('Bold', 'create-a-newsletter-with-the-block-editor'), value: '700' }
-                            ]}
-                            onChange={(value) => setAttributes({ titleFontWeight: value })}
-                        />
+                        {FontFamilyControl && (
+                            <FontFamilyControl
+                                fontFamilies={fontFamilies}
+                                value={titleFontFamily}
+                                onChange={(value) => setAttributes({ titleFontFamily: value })}
+                                __nextHasNoMarginBottom
+                            />
+                        )}
+
+                        {FontAppearanceControl && (
+                            <FontAppearanceControl
+                                value={{
+                                    fontStyle: titleFontStyle,
+                                    fontWeight: titleFontWeight
+                                }}
+                                onChange={(value) => {
+                                    setAttributes({
+                                        titleFontStyle: value.fontStyle,
+                                        titleFontWeight: value.fontWeight
+                                    });
+                                }}
+                                __nextHasNoMarginBottom
+                            />
+                        )}
                     </PanelBody>
 
+                    {/* Typography - Description */}
                     <PanelBody
                         title={__('Typography - Description', 'create-a-newsletter-with-the-block-editor')}
                         initialOpen={false}
                     >
                         <FontSizePicker
+                            fontSizes={fontSizes}
                             value={descriptionFontSize}
                             onChange={(value) => setAttributes({ descriptionFontSize: value })}
+                            withReset
+                            __nextHasNoMarginBottom
                         />
+
+                        {FontFamilyControl && (
+                            <FontFamilyControl
+                                fontFamilies={fontFamilies}
+                                value={descriptionFontFamily}
+                                onChange={(value) => setAttributes({ descriptionFontFamily: value })}
+                                __nextHasNoMarginBottom
+                            />
+                        )}
+
+                        {FontAppearanceControl && (
+                            <FontAppearanceControl
+                                value={{
+                                    fontStyle: descriptionFontStyle,
+                                    fontWeight: descriptionFontWeight
+                                }}
+                                onChange={(value) => {
+                                    setAttributes({
+                                        descriptionFontStyle: value.fontStyle,
+                                        descriptionFontWeight: value.fontWeight
+                                    });
+                                }}
+                                __nextHasNoMarginBottom
+                            />
+                        )}
                     </PanelBody>
 
+                    {/* Typography - Inputs */}
+                    <PanelBody
+                        title={__('Typography - Input Fields', 'create-a-newsletter-with-the-block-editor')}
+                        initialOpen={false}
+                    >
+                        <FontSizePicker
+                            fontSizes={fontSizes}
+                            value={inputFontSize}
+                            onChange={(value) => setAttributes({ inputFontSize: value })}
+                            withReset
+                            __nextHasNoMarginBottom
+                        />
+
+                        {FontFamilyControl && (
+                            <FontFamilyControl
+                                fontFamilies={fontFamilies}
+                                value={inputFontFamily}
+                                onChange={(value) => setAttributes({ inputFontFamily: value })}
+                                __nextHasNoMarginBottom
+                            />
+                        )}
+                    </PanelBody>
+
+                    {/* Typography - Button */}
                     <PanelBody
                         title={__('Typography - Button', 'create-a-newsletter-with-the-block-editor')}
                         initialOpen={false}
                     >
                         <FontSizePicker
+                            fontSizes={fontSizes}
                             value={buttonFontSize}
                             onChange={(value) => setAttributes({ buttonFontSize: value })}
+                            withReset
+                            __nextHasNoMarginBottom
                         />
 
-                        <SelectControl
-                            label={__('Font Weight', 'create-a-newsletter-with-the-block-editor')}
-                            value={buttonFontWeight}
-                            options={[
-                                { label: __('Normal', 'create-a-newsletter-with-the-block-editor'), value: '400' },
-                                { label: __('Medium', 'create-a-newsletter-with-the-block-editor'), value: '500' },
-                                { label: __('Semi Bold', 'create-a-newsletter-with-the-block-editor'), value: '600' },
-                                { label: __('Bold', 'create-a-newsletter-with-the-block-editor'), value: '700' }
-                            ]}
-                            onChange={(value) => setAttributes({ buttonFontWeight: value })}
-                        />
+                        {FontFamilyControl && (
+                            <FontFamilyControl
+                                fontFamilies={fontFamilies}
+                                value={buttonFontFamily}
+                                onChange={(value) => setAttributes({ buttonFontFamily: value })}
+                                __nextHasNoMarginBottom
+                            />
+                        )}
+
+                        {FontAppearanceControl && (
+                            <FontAppearanceControl
+                                value={{
+                                    fontStyle: buttonFontStyle,
+                                    fontWeight: buttonFontWeight
+                                }}
+                                onChange={(value) => {
+                                    setAttributes({
+                                        buttonFontStyle: value.fontStyle,
+                                        buttonFontWeight: value.fontWeight
+                                    });
+                                }}
+                                __nextHasNoMarginBottom
+                            />
+                        )}
                     </PanelBody>
 
-                    <PanelColorSettings
-                        title={__('Color Settings', 'create-a-newsletter-with-the-block-editor')}
-                        initialOpen={false}
-                        colorSettings={[
-                            {
-                                value: titleColor?.color,
-                                onChange: setTitleColor,
-                                label: __('Title Color', 'create-a-newsletter-with-the-block-editor')
-                            },
-                            {
-                                value: descriptionColor?.color,
-                                onChange: setDescriptionColor,
-                                label: __('Description Color', 'create-a-newsletter-with-the-block-editor')
-                            },
-                            {
-                                value: backgroundColor?.color,
-                                onChange: setBackgroundColor,
-                                label: __('Background Color', 'create-a-newsletter-with-the-block-editor')
-                            },
-                            {
-                                value: buttonBackgroundColor?.color,
-                                onChange: setButtonBackgroundColor,
-                                label: __('Button Background', 'create-a-newsletter-with-the-block-editor')
-                            },
-                            {
-                                value: buttonTextColor?.color,
-                                onChange: setButtonTextColor,
-                                label: __('Button Text Color', 'create-a-newsletter-with-the-block-editor')
-                            }
-                        ]}
-                    />
+                    {/* Colors - Title */}
+                    {PanelColorGradientSettings && (
+                        <PanelColorGradientSettings
+                            title={__('Title Colors', 'create-a-newsletter-with-the-block-editor')}
+                            initialOpen={false}
+                            settings={[
+                                {
+                                    colorValue: titleColor,
+                                    gradientValue: titleGradient,
+                                    colors: colors,
+                                    gradients: gradients,
+                                    label: __('Text Color', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ titleColor: value }),
+                                    onGradientChange: (value) => setAttributes({ titleGradient: value })
+                                }
+                            ]}
+                        />
+                    )}
 
+                    {/* Colors - Description */}
+                    {PanelColorGradientSettings && (
+                        <PanelColorGradientSettings
+                            title={__('Description Colors', 'create-a-newsletter-with-the-block-editor')}
+                            initialOpen={false}
+                            settings={[
+                                {
+                                    colorValue: descriptionColor,
+                                    gradientValue: descriptionGradient,
+                                    colors: colors,
+                                    gradients: gradients,
+                                    label: __('Text Color', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ descriptionColor: value }),
+                                    onGradientChange: (value) => setAttributes({ descriptionGradient: value })
+                                }
+                            ]}
+                        />
+                    )}
+
+                    {/* Colors - Container */}
+                    {PanelColorGradientSettings && (
+                        <PanelColorGradientSettings
+                            title={__('Container Colors', 'create-a-newsletter-with-the-block-editor')}
+                            initialOpen={false}
+                            settings={[
+                                {
+                                    colorValue: containerBackgroundColor,
+                                    gradientValue: containerGradient,
+                                    colors: colors,
+                                    gradients: gradients,
+                                    label: __('Background', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ containerBackgroundColor: value }),
+                                    onGradientChange: (value) => setAttributes({ containerGradient: value })
+                                }
+                            ]}
+                        />
+                    )}
+
+                    {/* Colors - Input Fields */}
+                    {PanelColorGradientSettings && (
+                        <PanelColorGradientSettings
+                            title={__('Input Field Colors', 'create-a-newsletter-with-the-block-editor')}
+                            initialOpen={false}
+                            settings={[
+                                {
+                                    colorValue: inputTextColor,
+                                    colors: colors,
+                                    label: __('Text Color', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ inputTextColor: value })
+                                },
+                                {
+                                    colorValue: inputBackgroundColor,
+                                    colors: colors,
+                                    label: __('Background Color', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ inputBackgroundColor: value })
+                                },
+                                {
+                                    colorValue: inputBorderColor,
+                                    colors: colors,
+                                    label: __('Border Color', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ inputBorderColor: value })
+                                },
+                                {
+                                    colorValue: inputFocusBorderColor,
+                                    colors: colors,
+                                    label: __('Focus Border Color', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ inputFocusBorderColor: value })
+                                },
+                                {
+                                    colorValue: inputPlaceholderColor,
+                                    colors: colors,
+                                    label: __('Placeholder Color', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ inputPlaceholderColor: value })
+                                }
+                            ]}
+                        />
+                    )}
+
+                    {/* Colors - Button */}
+                    {PanelColorGradientSettings && (
+                        <PanelColorGradientSettings
+                            title={__('Button Colors', 'create-a-newsletter-with-the-block-editor')}
+                            initialOpen={false}
+                            settings={[
+                                {
+                                    colorValue: buttonTextColor,
+                                    colors: colors,
+                                    label: __('Text Color', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ buttonTextColor: value })
+                                },
+                                {
+                                    colorValue: buttonBackgroundColor,
+                                    gradientValue: buttonGradient,
+                                    colors: colors,
+                                    gradients: gradients,
+                                    label: __('Background', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ buttonBackgroundColor: value }),
+                                    onGradientChange: (value) => setAttributes({ buttonGradient: value })
+                                },
+                                {
+                                    colorValue: buttonBorderColor,
+                                    colors: colors,
+                                    label: __('Border Color', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ buttonBorderColor: value })
+                                },
+                                {
+                                    colorValue: buttonHoverTextColor,
+                                    colors: colors,
+                                    label: __('Hover Text Color', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ buttonHoverTextColor: value })
+                                },
+                                {
+                                    colorValue: buttonHoverBackgroundColor,
+                                    colors: colors,
+                                    label: __('Hover Background', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ buttonHoverBackgroundColor: value })
+                                }
+                            ]}
+                        />
+                    )}
+
+                    {/* Colors - Privacy & GDPR */}
+                    {PanelColorGradientSettings && (
+                        <PanelColorGradientSettings
+                            title={__('Privacy & GDPR Colors', 'create-a-newsletter-with-the-block-editor')}
+                            initialOpen={false}
+                            settings={[
+                                {
+                                    colorValue: privacyTextColor,
+                                    colors: colors,
+                                    label: __('Privacy Text Color', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ privacyTextColor: value })
+                                },
+                                {
+                                    colorValue: gdprTextColor,
+                                    colors: colors,
+                                    label: __('GDPR Text Color', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ gdprTextColor: value })
+                                },
+                                {
+                                    colorValue: gdprBackgroundColor,
+                                    colors: colors,
+                                    label: __('GDPR Background', 'create-a-newsletter-with-the-block-editor'),
+                                    onColorChange: (value) => setAttributes({ gdprBackgroundColor: value })
+                                }
+                            ]}
+                        />
+                    )}
+
+                    {/* Spacing & Borders */}
                     <PanelBody
                         title={__('Spacing & Borders', 'create-a-newsletter-with-the-block-editor')}
                         initialOpen={false}
                     >
-                        <RangeControl
-                            label={__('Container Padding', 'create-a-newsletter-with-the-block-editor')}
-                            value={containerPadding}
-                            onChange={(value) => setAttributes({ containerPadding: value })}
-                            min={0}
-                            max={100}
-                        />
+                        {UnitControl ? (
+                            <>
+                                <UnitControl
+                                    label={__('Container Padding', 'create-a-newsletter-with-the-block-editor')}
+                                    value={containerPadding}
+                                    onChange={(value) => setAttributes({ containerPadding: value })}
+                                    units={[
+                                        { value: 'px', label: 'px' },
+                                        { value: 'em', label: 'em' },
+                                        { value: 'rem', label: 'rem' },
+                                        { value: '%', label: '%' }
+                                    ]}
+                                />
 
-                        <RangeControl
-                            label={__('Container Border Radius', 'create-a-newsletter-with-the-block-editor')}
-                            value={borderRadius}
-                            onChange={(value) => setAttributes({ borderRadius: value })}
-                            min={0}
-                            max={50}
-                        />
+                                <UnitControl
+                                    label={__('Container Border Radius', 'create-a-newsletter-with-the-block-editor')}
+                                    value={borderRadius}
+                                    onChange={(value) => setAttributes({ borderRadius: value })}
+                                    units={[
+                                        { value: 'px', label: 'px' },
+                                        { value: 'em', label: 'em' },
+                                        { value: '%', label: '%' }
+                                    ]}
+                                />
 
-                        <RangeControl
-                            label={__('Input Border Radius', 'create-a-newsletter-with-the-block-editor')}
-                            value={inputBorderRadius}
-                            onChange={(value) => setAttributes({ inputBorderRadius: value })}
-                            min={0}
-                            max={25}
-                        />
+                                <UnitControl
+                                    label={__('Input Border Radius', 'create-a-newsletter-with-the-block-editor')}
+                                    value={inputBorderRadius}
+                                    onChange={(value) => setAttributes({ inputBorderRadius: value })}
+                                    units={[
+                                        { value: 'px', label: 'px' },
+                                        { value: 'em', label: 'em' }
+                                    ]}
+                                />
 
-                        <RangeControl
-                            label={__('Button Border Radius', 'create-a-newsletter-with-the-block-editor')}
-                            value={buttonBorderRadius}
-                            onChange={(value) => setAttributes({ buttonBorderRadius: value })}
-                            min={0}
-                            max={25}
-                        />
+                                <UnitControl
+                                    label={__('Input Border Width', 'create-a-newsletter-with-the-block-editor')}
+                                    value={inputBorderWidth}
+                                    onChange={(value) => setAttributes({ inputBorderWidth: value })}
+                                    units={[
+                                        { value: 'px', label: 'px' }
+                                    ]}
+                                />
+
+                                <UnitControl
+                                    label={__('Button Border Radius', 'create-a-newsletter-with-the-block-editor')}
+                                    value={buttonBorderRadius}
+                                    onChange={(value) => setAttributes({ buttonBorderRadius: value })}
+                                    units={[
+                                        { value: 'px', label: 'px' },
+                                        { value: 'em', label: 'em' }
+                                    ]}
+                                />
+
+                                <UnitControl
+                                    label={__('Button Border Width', 'create-a-newsletter-with-the-block-editor')}
+                                    value={buttonBorderWidth}
+                                    onChange={(value) => setAttributes({ buttonBorderWidth: value })}
+                                    units={[
+                                        { value: 'px', label: 'px' }
+                                    ]}
+                                />
+                            </>
+                        ) : null}
                     </PanelBody>
 
+                    {/* Field Settings */}
                     <PanelBody
                         title={__('Field Settings', 'create-a-newsletter-with-the-block-editor')}
                         initialOpen={false}
@@ -413,6 +792,7 @@ registerBlockType('canwbe/subscription-form', {
                             label={__('Email Placeholder', 'create-a-newsletter-with-the-block-editor')}
                             value={placeholderEmail}
                             onChange={(value) => setAttributes({ placeholderEmail: value })}
+                            __nextHasNoMarginBottom
                         />
 
                         {showNameField && (
@@ -420,6 +800,7 @@ registerBlockType('canwbe/subscription-form', {
                                 label={__('Name Placeholder', 'create-a-newsletter-with-the-block-editor')}
                                 value={placeholderName}
                                 onChange={(value) => setAttributes({ placeholderName: value })}
+                                __nextHasNoMarginBottom
                             />
                         )}
 
@@ -427,9 +808,11 @@ registerBlockType('canwbe/subscription-form', {
                             label={__('Button Text', 'create-a-newsletter-with-the-block-editor')}
                             value={buttonText}
                             onChange={(value) => setAttributes({ buttonText: value })}
+                            __nextHasNoMarginBottom
                         />
                     </PanelBody>
 
+                    {/* Privacy & GDPR */}
                     <PanelBody
                         title={__('Privacy & GDPR', 'create-a-newsletter-with-the-block-editor')}
                         initialOpen={false}
@@ -438,111 +821,131 @@ registerBlockType('canwbe/subscription-form', {
                             label={__('Privacy Checkbox Text', 'create-a-newsletter-with-the-block-editor')}
                             value={privacyText}
                             onChange={(value) => setAttributes({ privacyText: value })}
-                            help={__('Text for the privacy policy acceptance checkbox', 'create-a-newsletter-with-the-block-editor')}
+                            __nextHasNoMarginBottom
                         />
 
                         <TextareaControl
                             label={__('GDPR Information Text', 'create-a-newsletter-with-the-block-editor')}
                             value={gdprText}
                             onChange={(value) => setAttributes({ gdprText: value })}
-                            help={__('Legal information about data processing (GDPR compliance)', 'create-a-newsletter-with-the-block-editor')}
                             rows={5}
-                        />
-                    </PanelBody>
-
-                    <PanelBody
-                        title={__('Messages', 'create-a-newsletter-with-the-block-editor')}
-                        initialOpen={false}
-                    >
-                        <TextControl
-                            label={__('Success Message', 'create-a-newsletter-with-the-block-editor')}
-                            value={successMessage}
-                            onChange={(value) => setAttributes({ successMessage: value })}
-                            help={__('Message shown after successful subscription', 'create-a-newsletter-with-the-block-editor')}
+                            __nextHasNoMarginBottom
                         />
                     </PanelBody>
                 </InspectorControls>
 
-                <div className="canwbe-subscription-form-wrapper">
-                    <div className="canwbe-subscription-form-container" style={containerStyle}>
-                        {title && (
-                            <h3 className="canwbe-subscription-form-title" style={titleStyle}>
-                                {title}
-                            </h3>
-                        )}
+                <div {...blockProps}>
+                    <div className="canwbe-subscription-form-wrapper">
+                        <div className="canwbe-subscription-form-container" style={containerStyle}>
+                            {title && (
+                                <h3 className="canwbe-subscription-form-title" style={titleStyle}>
+                                    {title}
+                                </h3>
+                            )}
 
-                        {description && (
-                            <p className="canwbe-subscription-form-description" style={descriptionStyle}>
-                                {description}
-                            </p>
-                        )}
+                            {description && (
+                                <p className="canwbe-subscription-form-description" style={descriptionStyle}>
+                                    {description}
+                                </p>
+                            )}
 
-                        <div className="canwbe-form-fields">
-                            {showNameField && (
+                            <div className="canwbe-form-fields">
+                                {showNameField && (
+                                    <div className="canwbe-form-field">
+                                        <input
+                                            type="text"
+                                            placeholder={placeholderName}
+                                            className="canwbe-form-input canwbe-name-input"
+                                            style={inputStyle}
+                                            disabled
+                                        />
+                                    </div>
+                                )}
+
                                 <div className="canwbe-form-field">
                                     <input
-                                        type="text"
-                                        placeholder={placeholderName}
-                                        className="canwbe-form-input canwbe-name-input"
+                                        type="email"
+                                        placeholder={placeholderEmail}
+                                        className="canwbe-form-input canwbe-email-input"
                                         style={inputStyle}
                                         disabled
                                     />
                                 </div>
-                            )}
 
-                            <div className="canwbe-form-field">
-                                <input
-                                    type="email"
-                                    placeholder={placeholderEmail}
-                                    className="canwbe-form-input canwbe-email-input"
-                                    style={inputStyle}
-                                    disabled
-                                />
-                            </div>
-
-                            <div className="canwbe-form-field canwbe-privacy-field">
-                                <label className="canwbe-privacy-label">
-                                    <input
-                                        type="checkbox"
-                                        className="canwbe-privacy-checkbox"
-                                        disabled
-                                    />
-                                    <span className="canwbe-privacy-text">{privacyText}</span>
-                                </label>
-                            </div>
-
-                            {gdprText && (
-                                <div className="canwbe-form-field canwbe-gdpr-field">
-                                    <p className="canwbe-gdpr-text">{gdprText}</p>
+                                <div className="canwbe-form-field canwbe-privacy-field">
+                                    <label className="canwbe-privacy-label" style={privacyStyle}>
+                                        <input
+                                            type="checkbox"
+                                            className="canwbe-privacy-checkbox"
+                                            disabled
+                                        />
+                                        <span className="canwbe-privacy-text">{privacyText}</span>
+                                    </label>
                                 </div>
-                            )}
 
-                            <div className="canwbe-form-field">
-                                <button type="button" className="canwbe-form-button" style={buttonStyle} disabled>
-                                    {buttonText}
-                                </button>
+                                {gdprText && (
+                                    <div className="canwbe-form-field canwbe-gdpr-field">
+                                        <p className="canwbe-gdpr-text" style={gdprStyle}>{gdprText}</p>
+                                    </div>
+                                )}
+
+                                <div className="canwbe-form-field">
+                                    <button
+                                        type="button"
+                                        className="canwbe-form-button"
+                                        style={buttonStyle}
+                                        disabled
+                                    >
+                                        {buttonText}
+                                    </button>
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="canwbe-editor-notice" style={{
-                            marginTop: '1em',
-                            padding: '0.5em',
-                            background: '#e8f4fd',
-                            border: '1px solid #d0e4f2',
-                            borderRadius: '4px',
-                            fontSize: '0.9em',
-                            color: '#0073aa'
-                        }}>
-                            {__('Preview: This form will be functional on the frontend and includes GDPR compliance.', 'create-a-newsletter-with-the-block-editor')}
+                            <div className="canwbe-editor-notice" style={{
+                                marginTop: '1em',
+                                padding: '0.5em',
+                                background: '#e8f4fd',
+                                border: '1px solid #d0e4f2',
+                                borderRadius: '4px',
+                                fontSize: '0.9em',
+                                color: '#0073aa'
+                            }}>
+                                {__('Preview: This form will be functional on the frontend.', 'create-a-newsletter-with-the-block-editor')}
+                            </div>
                         </div>
                     </div>
+
+                    {/* Dynamic CSS for hover states */}
+                    {(buttonHoverTextColor || buttonHoverBackgroundColor || inputFocusBorderColor || inputPlaceholderColor) && (
+                        <style>
+                            {`
+                                ${buttonHoverTextColor || buttonHoverBackgroundColor ? `
+                                    .canwbe-form-button:hover {
+                                        ${buttonHoverTextColor ? `color: ${buttonHoverTextColor} !important;` : ''}
+                                        ${buttonHoverBackgroundColor ? `background-color: ${buttonHoverBackgroundColor} !important;` : ''}
+                                    }
+                                ` : ''}
+                                
+                                ${inputFocusBorderColor ? `
+                                    .canwbe-form-input:focus {
+                                        border-color: ${inputFocusBorderColor} !important;
+                                    }
+                                ` : ''}
+                                
+                                ${inputPlaceholderColor ? `
+                                    .canwbe-form-input::placeholder {
+                                        color: ${inputPlaceholderColor};
+                                    }
+                                ` : ''}
+                            `}
+                        </style>
+                    )}
                 </div>
             </>
         );
-    }),
+    },
 
     save: function() {
-        // Return null because we use render_callback for dynamic rendering
-        return null;
+        return null; // Dynamic rendering via PHP
     }
 });
