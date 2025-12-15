@@ -25,7 +25,8 @@ function canwbe_register_subscription_form_block() {
             'wp-element',
             'wp-editor',
             'wp-components',
-            'wp-i18n'
+            'wp-i18n',
+            'wp-compose'
         ),
         CANWBE_VERSION
     );
@@ -84,6 +85,83 @@ function canwbe_register_subscription_form_block() {
             'gdprText' => array(
                 'type' => 'string',
                 'default' => __('Data Controller: Website Name. Purpose: To send you a weekly newsletter via email. Legal basis: Your consent. Recipients: Your hosting provider. Rights: Access, rectification, limitation and deletion of your data if you request it. We will use your email address solely to send you the newsletters from this subscription.', 'create-a-newsletter-with-the-block-editor')
+            ),
+            // Typography - Title
+            'titleFontSize' => array(
+                'type' => 'string',
+                'default' => ''
+            ),
+            'titleFontFamily' => array(
+                'type' => 'string',
+                'default' => ''
+            ),
+            'titleFontWeight' => array(
+                'type' => 'string',
+                'default' => '600'
+            ),
+            // Typography - Description
+            'descriptionFontSize' => array(
+                'type' => 'string',
+                'default' => ''
+            ),
+            'descriptionFontFamily' => array(
+                'type' => 'string',
+                'default' => ''
+            ),
+            // Typography - Button
+            'buttonFontSize' => array(
+                'type' => 'string',
+                'default' => ''
+            ),
+            'buttonFontFamily' => array(
+                'type' => 'string',
+                'default' => ''
+            ),
+            'buttonFontWeight' => array(
+                'type' => 'string',
+                'default' => '600'
+            ),
+            // Colors
+            'titleColor' => array(
+                'type' => 'string',
+                'default' => ''
+            ),
+            'descriptionColor' => array(
+                'type' => 'string',
+                'default' => ''
+            ),
+            'backgroundColor' => array(
+                'type' => 'string',
+                'default' => ''
+            ),
+            'buttonBackgroundColor' => array(
+                'type' => 'string',
+                'default' => ''
+            ),
+            'buttonTextColor' => array(
+                'type' => 'string',
+                'default' => ''
+            ),
+            'inputBorderColor' => array(
+                'type' => 'string',
+                'default' => ''
+            ),
+            // Spacing
+            'containerPadding' => array(
+                'type' => 'number',
+                'default' => 32
+            ),
+            'borderRadius' => array(
+                'type' => 'number',
+                'default' => 8
+            ),
+            'inputBorderRadius' => array(
+                'type' => 'number',
+                'default' => 4
+            ),
+            'buttonBorderRadius' => array(
+                'type' => 'number',
+                'default' => 4
             )
         )
     ));
@@ -94,35 +172,93 @@ add_action('init', 'canwbe_register_subscription_form_block');
  * Render the subscription form block
  */
 function canwbe_render_subscription_form_block($attributes) {
-    $title = esc_html($attributes['title']);
-    $description = esc_html($attributes['description']);
-    $button_text = esc_html($attributes['buttonText']);
-    $success_message = esc_html($attributes['successMessage']);
-    $placeholder_email = esc_attr($attributes['placeholderEmail']);
-    $placeholder_name = esc_attr($attributes['placeholderName']);
-    $show_name_field = $attributes['showNameField'];
-    $alignment = esc_attr($attributes['alignment']);
-    $privacy_text = $attributes['privacyText'];
-    $gdpr_text = $attributes['gdprText'];
+    // Textos - con valores por defecto seguros
+    $title = isset($attributes['title']) ? esc_html($attributes['title']) : '';
+    $description = isset($attributes['description']) ? esc_html($attributes['description']) : '';
+    $button_text = isset($attributes['buttonText']) ? esc_html($attributes['buttonText']) : __('Subscribe', 'create-a-newsletter-with-the-block-editor');
+    $success_message = isset($attributes['successMessage']) ? esc_html($attributes['successMessage']) : __('Thank you for subscribing!', 'create-a-newsletter-with-the-block-editor');
+    $placeholder_email = isset($attributes['placeholderEmail']) ? esc_attr($attributes['placeholderEmail']) : __('Your email address', 'create-a-newsletter-with-the-block-editor');
+    $placeholder_name = isset($attributes['placeholderName']) ? esc_attr($attributes['placeholderName']) : __('Your name (optional)', 'create-a-newsletter-with-the-block-editor');
+    $show_name_field = isset($attributes['showNameField']) ? $attributes['showNameField'] : true;
+    $alignment = isset($attributes['alignment']) ? esc_attr($attributes['alignment']) : 'left';
+    $privacy_text = isset($attributes['privacyText']) ? $attributes['privacyText'] : __('I accept the privacy policy', 'create-a-newsletter-with-the-block-editor');
+    $gdpr_text = isset($attributes['gdprText']) ? $attributes['gdprText'] : '';
+
+    // Estilos - Tipografía
+    $title_font_size = isset($attributes['titleFontSize']) ? esc_attr($attributes['titleFontSize']) : '';
+    $title_font_weight = isset($attributes['titleFontWeight']) ? esc_attr($attributes['titleFontWeight']) : '600';
+    $description_font_size = isset($attributes['descriptionFontSize']) ? esc_attr($attributes['descriptionFontSize']) : '';
+    $button_font_size = isset($attributes['buttonFontSize']) ? esc_attr($attributes['buttonFontSize']) : '';
+    $button_font_weight = isset($attributes['buttonFontWeight']) ? esc_attr($attributes['buttonFontWeight']) : '600';
+
+    // Estilos - Colores
+    $title_color = isset($attributes['titleColor']) ? esc_attr($attributes['titleColor']) : '';
+    $description_color = isset($attributes['descriptionColor']) ? esc_attr($attributes['descriptionColor']) : '';
+    $background_color = isset($attributes['backgroundColor']) ? esc_attr($attributes['backgroundColor']) : '';
+    $button_bg_color = isset($attributes['buttonBackgroundColor']) ? esc_attr($attributes['buttonBackgroundColor']) : '';
+    $button_text_color = isset($attributes['buttonTextColor']) ? esc_attr($attributes['buttonTextColor']) : '';
+    $input_border_color = isset($attributes['inputBorderColor']) ? esc_attr($attributes['inputBorderColor']) : '';
+
+    // Estilos - Espaciado
+    $container_padding = isset($attributes['containerPadding']) ? intval($attributes['containerPadding']) : 32;
+    $border_radius = isset($attributes['borderRadius']) ? intval($attributes['borderRadius']) : 8;
+    $input_border_radius = isset($attributes['inputBorderRadius']) ? intval($attributes['inputBorderRadius']) : 4;
+    $button_border_radius = isset($attributes['buttonBorderRadius']) ? intval($attributes['buttonBorderRadius']) : 4;
 
     // Get privacy policy URL from settings or WordPress default
     $privacy_url = canwbe_get_privacy_policy_url();
 
     $form_id = 'canwbe-subscription-form-' . wp_rand(1000, 9999);
 
+    // Construir estilos inline
+    $container_style_parts = array();
+    $container_style_parts[] = 'text-align: ' . $alignment . ';';
+    if ($background_color) $container_style_parts[] = 'background-color: ' . $background_color . ';';
+    if ($container_padding) $container_style_parts[] = 'padding: ' . $container_padding . 'px;';
+    if ($border_radius) $container_style_parts[] = 'border-radius: ' . $border_radius . 'px;';
+    $container_style = implode(' ', $container_style_parts);
+
+    $title_style_parts = array();
+    if ($title_color) $title_style_parts[] = 'color: ' . $title_color . ';';
+    if ($title_font_size) $title_style_parts[] = 'font-size: ' . $title_font_size . ';';
+    if ($title_font_weight) $title_style_parts[] = 'font-weight: ' . $title_font_weight . ';';
+    $title_style = implode(' ', $title_style_parts);
+
+    $description_style_parts = array();
+    if ($description_color) $description_style_parts[] = 'color: ' . $description_color . ';';
+    if ($description_font_size) $description_style_parts[] = 'font-size: ' . $description_font_size . ';';
+    $description_style = implode(' ', $description_style_parts);
+
+    $input_style_parts = array();
+    if ($input_border_color) $input_style_parts[] = 'border-color: ' . $input_border_color . ';';
+    if ($input_border_radius) $input_style_parts[] = 'border-radius: ' . $input_border_radius . 'px;';
+    $input_style = implode(' ', $input_style_parts);
+
+    $button_style_parts = array();
+    if ($button_bg_color) $button_style_parts[] = 'background-color: ' . $button_bg_color . ';';
+    if ($button_text_color) $button_style_parts[] = 'color: ' . $button_text_color . ';';
+    if ($button_font_size) $button_style_parts[] = 'font-size: ' . $button_font_size . ';';
+    if ($button_font_weight) $button_style_parts[] = 'font-weight: ' . $button_font_weight . ';';
+    if ($button_border_radius) $button_style_parts[] = 'border-radius: ' . $button_border_radius . 'px;';
+    $button_style = implode(' ', $button_style_parts);
+
     ob_start();
     ?>
-    <div class="canwbe-subscription-form-wrapper" style="text-align: <?php echo $alignment; ?>;">
-        <div class="canwbe-subscription-form-container">
+    <div class="canwbe-subscription-form-wrapper">
+        <div class="canwbe-subscription-form-container" <?php if ($container_style) echo 'style="' . esc_attr($container_style) . '"'; ?>>
             <?php if (!empty($title)): ?>
-                <h3 class="canwbe-subscription-form-title"><?php echo $title; ?></h3>
+                <h3 class="canwbe-subscription-form-title" <?php if ($title_style) echo 'style="' . esc_attr($title_style) . '"'; ?>>
+                    <?php echo $title; ?>
+                </h3>
             <?php endif; ?>
 
             <?php if (!empty($description)): ?>
-                <p class="canwbe-subscription-form-description"><?php echo $description; ?></p>
+                <p class="canwbe-subscription-form-description" <?php if ($description_style) echo 'style="' . esc_attr($description_style) . '"'; ?>>
+                    <?php echo $description; ?>
+                </p>
             <?php endif; ?>
 
-            <form id="<?php echo $form_id; ?>" class="canwbe-subscription-form" method="post">
+            <form id="<?php echo esc_attr($form_id); ?>" class="canwbe-subscription-form" method="post">
                 <?php wp_nonce_field('canwbe_subscription_form', 'canwbe_nonce'); ?>
                 <input type="hidden" name="action" value="canwbe_subscribe">
 
@@ -130,38 +266,40 @@ function canwbe_render_subscription_form_block($attributes) {
                     <?php if ($show_name_field): ?>
                         <div class="canwbe-form-field">
                             <input
-                                type="text"
-                                name="subscriber_name"
-                                placeholder="<?php echo $placeholder_name; ?>"
-                                class="canwbe-form-input canwbe-name-input"
+                                    type="text"
+                                    name="subscriber_name"
+                                    placeholder="<?php echo $placeholder_name; ?>"
+                                    class="canwbe-form-input canwbe-name-input"
+                                <?php if ($input_style) echo 'style="' . esc_attr($input_style) . '"'; ?>
                             >
                         </div>
                     <?php endif; ?>
 
                     <div class="canwbe-form-field">
                         <input
-                            type="email"
-                            name="subscriber_email"
-                            placeholder="<?php echo $placeholder_email; ?>"
-                            class="canwbe-form-input canwbe-email-input"
-                            required
+                                type="email"
+                                name="subscriber_email"
+                                placeholder="<?php echo $placeholder_email; ?>"
+                                class="canwbe-form-input canwbe-email-input"
+                            <?php if ($input_style) echo 'style="' . esc_attr($input_style) . '"'; ?>
+                                required
                         >
                     </div>
 
                     <div class="canwbe-form-field canwbe-privacy-field">
                         <label class="canwbe-privacy-label">
                             <input
-                                type="checkbox"
-                                name="privacy_accepted"
-                                class="canwbe-privacy-checkbox"
-                                required
+                                    type="checkbox"
+                                    name="privacy_accepted"
+                                    class="canwbe-privacy-checkbox"
+                                    required
                             >
                             <span class="canwbe-privacy-text">
                                 <?php if ($privacy_url): ?>
                                     <?php echo str_replace(
                                         __('privacy policy', 'create-a-newsletter-with-the-block-editor'),
                                         '<a href="' . esc_url($privacy_url) . '" target="_blank">' . __('privacy policy', 'create-a-newsletter-with-the-block-editor') . '</a>',
-                                        $privacy_text
+                                        esc_html($privacy_text)
                                     ); ?>
                                 <?php else: ?>
                                     <?php echo esc_html($privacy_text); ?>
@@ -177,7 +315,11 @@ function canwbe_render_subscription_form_block($attributes) {
                     <?php endif; ?>
 
                     <div class="canwbe-form-field">
-                        <button type="submit" class="canwbe-form-button">
+                        <button
+                                type="submit"
+                                class="canwbe-form-button"
+                            <?php if ($button_style) echo 'style="' . esc_attr($button_style) . '"'; ?>
+                        >
                             <?php echo $button_text; ?>
                         </button>
                     </div>
@@ -195,8 +337,11 @@ function canwbe_render_subscription_form_block($attributes) {
 
     <script>
         (function() {
-            const form = document.getElementById('<?php echo $form_id; ?>');
+            const form = document.getElementById('<?php echo esc_js($form_id); ?>');
             if (!form) return;
+
+            // IMPORTANTE: Obtener el mensaje de éxito personalizado desde PHP
+            const customSuccessMessage = <?php echo json_encode($success_message); ?>;
 
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -214,12 +359,12 @@ function canwbe_render_subscription_form_block($attributes) {
                 const privacyCheckbox = form.querySelector('.canwbe-privacy-checkbox');
                 if (privacyCheckbox && !privacyCheckbox.checked) {
                     errorMessage.style.display = 'block';
-                    errorMessage.textContent = '<?php echo esc_js(__('You must accept the privacy policy to subscribe.', 'create-a-newsletter-with-the-block-editor')); ?>';
+                    errorMessage.textContent = <?php echo json_encode(__('You must accept the privacy policy to subscribe.', 'create-a-newsletter-with-the-block-editor')); ?>;
                     return;
                 }
 
                 // Show loading state
-                button.textContent = '<?php echo esc_js(__('Subscribing...', 'create-a-newsletter-with-the-block-editor')); ?>';
+                button.textContent = <?php echo json_encode(__('Subscribing...', 'create-a-newsletter-with-the-block-editor')); ?>;
                 button.disabled = true;
 
                 // Prepare form data
@@ -227,7 +372,7 @@ function canwbe_render_subscription_form_block($attributes) {
                 formData.append('action', 'canwbe_ajax_subscribe');
 
                 // Send AJAX request
-                fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                fetch(<?php echo json_encode(admin_url('admin-ajax.php')); ?>, {
                     method: 'POST',
                     body: formData
                 })
@@ -236,15 +381,16 @@ function canwbe_render_subscription_form_block($attributes) {
                         if (data.success) {
                             form.reset();
                             successMessage.style.display = 'block';
-                            successMessage.textContent = data.data.message || '<?php echo esc_js($success_message); ?>';
+                            // CRÍTICO: Usar el mensaje personalizado del servidor o el mensaje personalizado local
+                            successMessage.textContent = data.data.message || customSuccessMessage;
                         } else {
                             errorMessage.style.display = 'block';
-                            errorMessage.textContent = data.data.message || '<?php echo esc_js(__('An error occurred. Please try again.', 'create-a-newsletter-with-the-block-editor')); ?>';
+                            errorMessage.textContent = data.data.message || <?php echo json_encode(__('An error occurred. Please try again.', 'create-a-newsletter-with-the-block-editor')); ?>;
                         }
                     })
                     .catch(error => {
                         errorMessage.style.display = 'block';
-                        errorMessage.textContent = '<?php echo esc_js(__('An error occurred. Please try again.', 'create-a-newsletter-with-the-block-editor')); ?>';
+                        errorMessage.textContent = <?php echo json_encode(__('An error occurred. Please try again.', 'create-a-newsletter-with-the-block-editor')); ?>;
                     })
                     .finally(() => {
                         button.textContent = originalButtonText;
@@ -281,14 +427,14 @@ function canwbe_get_privacy_policy_url() {
  */
 function canwbe_handle_ajax_subscription() {
     // Verify nonce
-    if (!wp_verify_nonce($_POST['canwbe_nonce'], 'canwbe_subscription_form')) {
+    if (!isset($_POST['canwbe_nonce']) || !wp_verify_nonce($_POST['canwbe_nonce'], 'canwbe_subscription_form')) {
         wp_send_json_error(array(
             'message' => __('Security check failed.', 'create-a-newsletter-with-the-block-editor')
         ));
     }
 
-    $email = sanitize_email($_POST['subscriber_email']);
-    $name = sanitize_text_field($_POST['subscriber_name']);
+    $email = isset($_POST['subscriber_email']) ? sanitize_email($_POST['subscriber_email']) : '';
+    $name = isset($_POST['subscriber_name']) ? sanitize_text_field($_POST['subscriber_name']) : '';
     $privacy_accepted = isset($_POST['privacy_accepted']) && $_POST['privacy_accepted'];
 
     // Validate required fields
@@ -376,202 +522,3 @@ function canwbe_enqueue_subscription_form_assets() {
     }
 }
 add_action('wp_enqueue_scripts', 'canwbe_enqueue_subscription_form_assets');
-
-/**
- * Create CSS file for subscription form block
- */
-function canwbe_create_subscription_form_css() {
-    $css_dir = CANWBE_PLUGIN_PATH . 'assets/css/';
-    $css_file = $css_dir . 'subscription-form-block.css';
-
-    // Create directory if it doesn't exist
-    if (!file_exists($css_dir)) {
-        wp_mkdir_p($css_dir);
-    }
-
-    // Create CSS file if it doesn't exist
-    if (!file_exists($css_file)) {
-        $css_content = '
-.canwbe-subscription-form-wrapper {
-    margin: 1.5em 0;
-}
-
-.canwbe-subscription-form-container {
-    background: #f9f9f9;
-    padding: 2em;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
-    max-width: 500px;
-    margin: 0 auto;
-}
-
-.canwbe-subscription-form-title {
-    margin: 0 0 1em 0;
-    font-size: 1.5em;
-    font-weight: 600;
-    color: #333;
-}
-
-.canwbe-subscription-form-description {
-    margin: 0 0 1.5em 0;
-    color: #666;
-    line-height: 1.5;
-}
-
-.canwbe-form-fields {
-    display: flex;
-    flex-direction: column;
-    gap: 1em;
-}
-
-.canwbe-form-field {
-    margin: 0;
-}
-
-.canwbe-form-input {
-    width: 100%;
-    padding: 0.75em;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 1em;
-    box-sizing: border-box;
-}
-
-.canwbe-form-input:focus {
-    outline: none;
-    border-color: #0073aa;
-    box-shadow: 0 0 0 2px rgba(0, 115, 170, 0.1);
-}
-
-.canwbe-form-button {
-    width: 100%;
-    padding: 0.75em 1.5em;
-    background: #0073aa;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-size: 1em;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-
-.canwbe-form-button:hover {
-    background: #005a87;
-}
-
-.canwbe-form-button:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-}
-
-.canwbe-privacy-field {
-    margin: 1em 0;
-}
-
-.canwbe-privacy-label {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5em;
-    font-size: 0.9em;
-    line-height: 1.4;
-    cursor: pointer;
-}
-
-.canwbe-privacy-checkbox {
-    margin: 0;
-    margin-top: 0.2em;
-    flex-shrink: 0;
-}
-
-.canwbe-privacy-text a {
-    color: #0073aa;
-    text-decoration: underline;
-}
-
-.canwbe-privacy-text a:hover {
-    text-decoration: none;
-}
-
-.canwbe-gdpr-field {
-    margin: 1em 0;
-}
-
-.canwbe-gdpr-text {
-    font-size: 0.8em;
-    color: #666;
-    line-height: 1.4;
-    margin: 0;
-    padding: 0.75em;
-    background: #f5f5f5;
-    border-radius: 4px;
-    border-left: 3px solid #0073aa;
-}
-
-.canwbe-form-messages {
-    margin-top: 1em;
-}
-
-.canwbe-success-message {
-    padding: 0.75em;
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-    border-radius: 4px;
-    margin-bottom: 1em;
-}
-
-.canwbe-error-message {
-    padding: 0.75em;
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-    border-radius: 4px;
-    margin-bottom: 1em;
-}
-
-/* Responsive design */
-@media (min-width: 768px) {
-    .canwbe-form-fields {
-        flex-direction: row;
-        align-items: flex-end;
-        flex-wrap: wrap;
-    }
-    
-    .canwbe-form-field:not(.canwbe-privacy-field):not(.canwbe-gdpr-field):not(:last-child) {
-        flex: 1;
-        min-width: 200px;
-    }
-    
-    .canwbe-form-field:last-child {
-        flex-shrink: 0;
-        margin-left: 1em;
-    }
-    
-    .canwbe-privacy-field,
-    .canwbe-gdpr-field {
-        flex-basis: 100%;
-        order: 10;
-    }
-    
-    .canwbe-form-button {
-        width: auto;
-        white-space: nowrap;
-    }
-}
-
-/* Editor styles */
-.editor-styles-wrapper .canwbe-subscription-form-container {
-    background: #f0f0f0;
-    border: 2px dashed #ccc;
-}
-
-.editor-styles-wrapper .canwbe-subscription-form-title {
-    margin-top: 0;
-}
-        ';
-
-        file_put_contents($css_file, $css_content);
-    }
-}
-add_action('init', 'canwbe_create_subscription_form_css');
