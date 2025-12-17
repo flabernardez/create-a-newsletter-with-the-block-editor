@@ -1,27 +1,31 @@
+/**
+ * Subscription Form Block Styles
+ *
+ * CSS LIMPIO: Sin colores hardcodeados
+ * Todos los colores vienen del editor via inline styles
+ */
+
 .canwbe-subscription-form-wrapper {
-    margin: 1.5em 0;
+    width: 100%;
+    margin: 2em 0;
 }
 
 .canwbe-subscription-form-container {
-    background: var(--wp--preset--color--base, #f9f9f9);
-    padding: 2em;
-    border-radius: 8px;
-    border: 1px solid var(--wp--preset--color--contrast, #e0e0e0);
+    /* Sin background, sin border-color - todo viene del editor */
     max-width: 600px;
     margin: 0 auto;
 }
 
 .canwbe-subscription-form-title {
-    margin: 0 0 1em 0;
-    font-size: var(--wp--preset--font-size--large, 1.5em);
+    margin-top: 0;
+    margin-bottom: 1em;
+    font-size: 1.5em;
     font-weight: 600;
-    color: var(--wp--preset--color--contrast, #333);
 }
 
 .canwbe-subscription-form-description {
-    margin: 0 0 1.5em 0;
-    color: var(--wp--preset--color--contrast, #666);
-    line-height: 1.5;
+    margin-bottom: 1.5em;
+    line-height: 1.6;
 }
 
 .canwbe-form-fields {
@@ -31,70 +35,70 @@
 }
 
 .canwbe-form-field {
-    margin: 0;
+    width: 100%;
 }
 
 .canwbe-form-input {
     width: 100%;
     padding: 0.75em;
-    border: 1px solid var(--wp--preset--color--contrast, #ddd);
-    border-radius: 4px;
     font-size: 1em;
-    box-sizing: border-box;
-    background-color: var(--wp--preset--color--base, #fff);
-    color: var(--wp--preset--color--contrast, #333);
-    transition: border-color 0.2s ease;
+    transition: border-color 0.3s;
 }
 
 .canwbe-form-input:focus {
     outline: none;
-    border-color: var(--wp--preset--color--primary, #0073aa);
-}
-
-.canwbe-form-button {
-    width: 100%;
-    padding: 0.75em 1.5em;
-    background: var(--wp--preset--color--primary, #0073aa);
-    color: var(--wp--preset--color--base, white);
-    border: none;
-    border-radius: 4px;
-    font-size: 1em;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-
-.canwbe-form-button:hover {
-    opacity: 0.9;
 }
 
 .canwbe-privacy-field {
-    margin: 1em 0;
+    margin-top: 0.5em;
 }
 
 .canwbe-privacy-label {
     display: flex;
     align-items: flex-start;
     gap: 0.5em;
-    font-size: 0.9em;
-    line-height: 1.4;
     cursor: pointer;
+    font-size: 0.9em;
 }
 
 .canwbe-privacy-checkbox {
-    margin: 0;
-    margin-top: 0.2em;
+    margin-top: 0.25em;
+    cursor: pointer;
     flex-shrink: 0;
 }
 
+.canwbe-privacy-text {
+    line-height: 1.5;
+}
+
+.canwbe-privacy-text a {
+    text-decoration: underline;
+}
+
+.canwbe-gdpr-field {
+    margin-top: 0.5em;
+}
+
 .canwbe-gdpr-text {
-    font-size: 0.8em;
-    color: var(--wp--preset--color--contrast, #666);
-    line-height: 1.4;
+    font-size: 0.85em;
+    line-height: 1.5;
     margin: 0;
-    padding: 0.75em;
-    background: var(--wp--preset--color--base-2, #f5f5f5);
+    padding: 1em;
     border-radius: 4px;
+}
+
+.canwbe-form-button {
+    width: 100%;
+    padding: 0.75em 1.5em;
+    border: none;
+    font-size: 1em;
+    cursor: pointer;
+    transition: opacity 0.3s;
+}
+
+.canwbe-form-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .canwbe-form-messages {
@@ -102,39 +106,22 @@
 }
 
 .canwbe-success-message {
-    padding: 0.75em;
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
+    padding: 1em;
     border-radius: 4px;
 }
 
 .canwbe-error-message {
-    padding: 0.75em;
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+    padding: 1em;
     border-radius: 4px;
 }
 
-@media (min-width: 768px) {
-    .canwbe-form-fields {
-        flex-direction: row;
-        align-items: flex-end;
-        flex-wrap: wrap;
+/* Responsive */
+@media (max-width: 600px) {
+    .canwbe-subscription-form-container {
+        padding: 1.5em;
     }
 
-    .canwbe-form-field:not(.canwbe-privacy-field):not(.canwbe-gdpr-field):not(:last-child) {
-        flex: 1;
-        min-width: 200px;
-    }
-
-    .canwbe-privacy-field,
-    .canwbe-gdpr-field {
-        flex-basis: 100%;
-    }
-
-    .canwbe-form-button {
-        width: auto;
+    .canwbe-subscription-form-title {
+        font-size: 1.25em;
     }
 }
